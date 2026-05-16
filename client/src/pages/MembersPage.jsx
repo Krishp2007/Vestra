@@ -4,12 +4,14 @@ import api from '../utils/api';
 import { AVATARS, RELATIONS } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { Plus, X, Trash2, Edit } from 'lucide-react';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function MembersPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
   const [form, setForm] = useState({ name: '', relation: 'Self', avatar: '👤' });
 
   useEffect(() => { load(); }, []);
@@ -26,9 +28,14 @@ export default function MembersPage() {
     } catch(e) { toast.error('Error'); }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Remove this family member?')) return;
-    try { await api.delete(`/members/${id}`); toast.success('Removed'); load(); } catch(e) { toast.error('Error'); }
+  const handleDelete = async () => {
+    if (!deleteModal.id) return;
+    try { 
+      await api.delete(`/members/${deleteModal.id}`); 
+      toast.success('Member removed'); 
+      setDeleteModal({ show: false, id: null });
+      load(); 
+    } catch(e) { toast.error('Error'); }
   };
 
   if (loading) return (<><Topbar title="Family Members"/><div className="page-content"><div className="page-loading"><div className="spinner"/></div></div></>);
@@ -47,7 +54,7 @@ export default function MembersPage() {
               <div key={m._id} className="member-card" style={{position:'relative'}}>
                 <div style={{position:'absolute',top:12,right:12,display:'flex',gap:4}}>
                   <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>{setForm({name:m.name,relation:m.relation,avatar:m.avatar});setEditId(m._id);setShowForm(true);}}><Edit size={14}/></button>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>handleDelete(m._id)}><Trash2 size={14}/></button>
+                  <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setDeleteModal({show:true, id:m._id})}><Trash2 size={14}/></button>
                 </div>
                 <div className="member-avatar">{m.avatar}</div>
                 <div className="member-name">{m.name}</div>
@@ -75,6 +82,15 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {deleteModal.show && (
+        <DeleteConfirmModal 
+          title="Remove Family Member" 
+          message="Are you sure you want to remove this family member? This will NOT delete their existing investments, but they will no longer appear in the members list." 
+          onConfirm={handleDelete} 
+          onCancel={() => setDeleteModal({ show: false, id: null })} 
+        />
+      )}
     </>
   );
 }

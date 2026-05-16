@@ -5,6 +5,8 @@ import { formatCurrency, formatDate, EXCHANGES } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, X, TrendingUp, TrendingDown, Bell } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import SearchSelect from '../components/SearchSelect';
 
 export default function StockPage() {
   const [stocks, setStocks] = useState([]);
@@ -18,17 +20,31 @@ export default function StockPage() {
   const [priceLoading, setPriceLoading] = useState({});
   const [suggestions, setSuggestions] = useState([]);
   const [alertModal, setAlertModal] = useState({ show: false, stock: null, targetPrice: '', stopLossPrice: '', activeTab: 'target' });
+  const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
 
   const handleSetAlert = async (e) => {
     e.preventDefault();
+    const tp = alertModal.targetPrice ? Number(alertModal.targetPrice) : null;
+    const sl = alertModal.stopLossPrice ? Number(alertModal.stopLossPrice) : null;
+    const cmp = alertModal.stock.currentPrice;
+
+    if (alertModal.activeTab === 'target' && tp && cmp && tp <= cmp) {
+      toast.error(`Target Price must be greater than Current Price (₹${cmp})`);
+      return;
+    }
+    if (alertModal.activeTab === 'stop' && sl && cmp && sl >= cmp) {
+      toast.error(`Stop Loss must be less than Current Price (₹${cmp})`);
+      return;
+    }
+
     try {
       const updates = { 
-        targetPrice: alertModal.targetPrice ? Number(alertModal.targetPrice) : null,
-        stopLossPrice: alertModal.stopLossPrice ? Number(alertModal.stopLossPrice) : null
+        targetPrice: alertModal.activeTab === 'target' ? tp : (alertModal.stock.targetPrice || null),
+        stopLossPrice: alertModal.activeTab === 'stop' ? sl : (alertModal.stock.stopLossPrice || null)
       };
       await api.put(`/stocks/${alertModal.stock._id}`, updates);
       toast.success('Price alerts updated');
-      setAlertModal({ show: false, stock: null, targetPrice: '', stopLossPrice: '' });
+      setAlertModal({ show: false, stock: null, targetPrice: '', stopLossPrice: '', activeTab: 'target' });
       load();
     } catch(err) {
       toast.error('Failed to set alerts');
@@ -101,8 +117,19 @@ export default function StockPage() {
     e.preventDefault();
     try {
       const selectedMemberId = form.memberId || (members.length > 0 ? members[0]._id : '');
+      const sym = form.symbol.toUpperCase();
+      
+      if (form.type === 'sell') {
+        const existing = stocks.find(s => s.symbol === sym && s.memberId?._id === selectedMemberId);
+        const holding = existing ? (existing.holdingQuantity || 0) : 0;
+        if (Number(form.quantity) > holding) {
+          toast.error(`You only hold ${holding} shares of ${sym}! You cannot sell ${form.quantity}.`);
+          return;
+        }
+      }
+
       await api.post('/stocks', {
-        symbol: form.symbol.toUpperCase(), memberId: selectedMemberId, exchange: form.exchange,
+        symbol: sym, memberId: selectedMemberId, exchange: form.exchange,
         transactions: [{ type: form.type, date: form.date, quantity: Number(form.quantity), pricePerUnit: Number(form.pricePerUnit), brokerage: Number(form.brokerage || 0) }]
       });
       toast.success('Transaction added!');
@@ -126,9 +153,16 @@ export default function StockPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this stock and all transactions?')) return;
-    try { await api.delete(`/stocks/${id}`); toast.success('Deleted'); load(); } catch(e) { toast.error('Error'); }
+  const handleDelete = async () => {
+    if (!deleteModal.id) return;
+    try { 
+      await api.delete(`/stocks/${deleteModal.id}`); 
+      toast.success('Stock deleted successfully'); 
+      setDeleteModal({ show: false, id: null });
+      load(); 
+    } catch(e) { 
+      toast.error('Error deleting stock'); 
+    }
   };
 
   if (loading) return (<><Topbar title="Stocks"/><div className="page-content"><div className="page-loading"><div className="spinner"/></div></div></>);
@@ -172,7 +206,7 @@ export default function StockPage() {
                         <span style={{fontSize:11}}>{isUp?'+':''}{plPct.toFixed(2)}%</span>
                       </div>
                     </td>
-                    <td onClick={e => e.stopPropagation()}><div style={{display:'flex',gap:4}}><button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setAlertModal({show:true, stock:stk, targetPrice:stk.targetPrice||'', stopLossPrice:stk.stopLossPrice||'', activeTab: 'target'})} title="Set Price Alert"><Bell size={14} color={(stk.targetPrice || stk.stopLossPrice) ? 'var(--accent)' : 'currentColor'}/></button><button className="btn btn-ghost btn-icon btn-sm" onClick={()=>handleDelete(stk._id)}><Trash2 size={14}/></button></div></td>
+                    <td onClick={e => e.stopPropagation()}><div style={{display:'flex',gap:4}}><button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setAlertModal({show:true, stock:stk, targetPrice:stk.targetPrice||'', stopLossPrice:stk.stopLossPrice||'', activeTab: 'target'})} title="Set Price Alert"><Bell size={14} color={(stk.targetPrice || stk.stopLossPrice) ? 'var(--accent)' : 'currentColor'}/></button><button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setDeleteModal({show:true, id:stk._id})}><Trash2 size={14}/></button></div></td>
                   </tr>
                 );
               })}</tbody>
@@ -206,9 +240,9 @@ export default function StockPage() {
                       {suggestions.map((s, i) => <option key={i} value={s.symbol.replace('.NS', '').replace('.BO', '')}>{s.shortname} ({s.exchDisp})</option>)}
                     </datalist>
                   </div>
-                  <div className="form-group"><label className="form-label">Exchange</label><select className="form-select" value={form.exchange} onChange={e=>setForm({...form,exchange:e.target.value})}>{EXCHANGES.map(e=><option key={e} value={e}>{e}</option>)}</select></div>
+                  <div className="form-group"><label className="form-label">Exchange</label><SearchSelect options={EXCHANGES} value={form.exchange} onChange={val => setForm({...form, exchange: val})} placeholder="Exchange" /></div>
                 </div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Member *</label><select className="form-select" value={form.memberId} onChange={e=>setForm({...form,memberId:e.target.value})} required>{members.map(m=><option key={m._id} value={m._id}>{m.avatar} {m.name}</option>)}</select></div><div className="form-group"><label className="form-label">Type</label><select className="form-select" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option value="buy">Buy</option><option value="sell">Sell</option></select></div></div>
+                <div className="form-row"><div className="form-group"><label className="form-label">Member *</label><SearchSelect options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} value={form.memberId} onChange={val => setForm({...form, memberId: val})} placeholder="Select member..." searchKey="searchLabel" required /></div><div className="form-group"><label className="form-label">Type</label><SearchSelect options={[{value:'buy',label:'Buy'},{value:'sell',label:'Sell'}]} value={form.type} onChange={val => setForm({...form, type: val})} placeholder="Type" /></div></div>
                 <div className="form-row"><div className="form-group"><label className="form-label">Date *</label><input className="form-input" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} required/></div><div className="form-group"><label className="form-label">Quantity *</label><input className="form-input" type="number" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})} required min="1"/></div></div>
                 <div className="form-row"><div className="form-group"><label className="form-label">Price per Unit (₹) *</label><input className="form-input" type="number" step="0.01" value={form.pricePerUnit} onChange={e=>setForm({...form,pricePerUnit:e.target.value})} required/></div><div className="form-group"><label className="form-label">Brokerage (₹)</label><input className="form-input" type="number" value={form.brokerage} onChange={e=>setForm({...form,brokerage:e.target.value})}/></div></div>
                 <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancel</button><button type="submit" className="btn btn-primary">Add Transaction</button></div>
@@ -239,6 +273,15 @@ export default function StockPage() {
               </form>
             </div>
           </div>
+        )}
+
+        {deleteModal.show && (
+          <DeleteConfirmModal 
+            title="Delete Stock" 
+            message="Are you sure you want to delete this stock and all its transaction history?" 
+            onConfirm={handleDelete} 
+            onCancel={() => setDeleteModal({ show: false, id: null })} 
+          />
         )}
 
         <AssetDetailsModal asset={viewingAsset} type="stock" onClose={() => setViewingAsset(null)} />

@@ -151,7 +151,8 @@ export default function Dashboard() {
                   <div className="member-avatar">{m.member.avatar || '👤'}</div>
                   <div className="member-name">{m.member.name}</div>
                   <div className="member-relation">{m.member.relation}</div>
-                  <div style={{marginTop:'12px',fontSize:18,fontWeight:700}}>{formatCurrency(m.totalValue)}</div>
+                  <div style={{marginTop:'12px',fontSize:18,fontWeight:700}}>{formatCurrency(m.totalInvested || 0)}</div>
+                  <div style={{fontSize:11,color:'var(--text-muted)'}}>Total Invested</div>
                   <div style={{fontSize:12,color:'var(--text-muted)',marginTop:4}}>
                     {m.sipCount} SIPs · {m.fdCount} FDs · {m.stockCount} Stocks
                   </div>

@@ -113,9 +113,14 @@ exports.getFamilyDashboard = async (req, res) => {
       const fdValue = memberFds.reduce((sum, f) => sum + (f.principalAmount || 0), 0);
       const stockValue = memberStocks.reduce((sum, s) => sum + (s.currentValue || 0), 0);
 
+      const sipInvested = memberSips.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+      const fdInvested = memberFds.reduce((sum, f) => sum + (f.principalAmount || 0), 0);
+      const stockInvested = memberStocks.reduce((sum, s) => sum + (s.totalInvested || 0), 0);
+
       return {
         member: { _id: member._id, name: member.name, avatar: member.avatar, relation: member.relation },
         totalValue: sipValue + fdValue + stockValue,
+        totalInvested: sipInvested + fdInvested + stockInvested,
         sipValue,
         fdValue,
         stockValue,

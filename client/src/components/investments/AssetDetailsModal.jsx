@@ -39,6 +39,35 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
     return asset.currentPrice || asset.avgBuyPrice;
   }, [asset, type, chartData]);
 
+  const stockMetrics = useMemo(() => {
+    if (!asset || type !== 'stock' || !asset.transactions?.length) return { text: '-', cagr: 0 };
+    
+    const firstBuy = asset.transactions.find(t => t.type === 'buy');
+    if (!firstBuy) return { text: '-', cagr: 0 };
+    
+    const start = new Date(firstBuy.date);
+    const diffDays = Math.ceil(Math.abs(new Date() - start) / (1000 * 60 * 60 * 24));
+    
+    let text = `${diffDays} days`;
+    if (diffDays >= 30) {
+      const months = Math.floor(diffDays / 30);
+      if (months < 12) text = `${months} month${months > 1 ? 's' : ''}`;
+      else {
+        const years = Math.floor(months / 12);
+        const rem = months % 12;
+        text = `${years} yr${years > 1 ? 's' : ''} ${rem > 0 ? `${rem} mo` : ''}`;
+      }
+    }
+    
+    let cagr = 0;
+    if (diffDays >= 30 && asset.totalInvested > 0) {
+      const currentValue = displayStockPrice * asset.holdingQuantity;
+      cagr = (Math.pow(currentValue / asset.totalInvested, 365.25 / diffDays) - 1) * 100;
+    }
+    
+    return { text, cagr };
+  }, [asset, type, displayStockPrice]);
+
   useEffect(() => {
     if (!asset) return;
     setChartData([]);
@@ -231,8 +260,10 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
               <div className="asset-details-grid">
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Quantity</div><div style={{ fontSize: 15, fontWeight: 600 }}>{asset.holdingQuantity}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Avg. Buy Price</div><div style={{ fontSize: 15, fontWeight: 600 }}>{formatCurrency(asset.avgBuyPrice)}</div></div>
-                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Price</div><div style={{ fontSize: 15, fontWeight: 600 }}>{formatCurrency(displayStockPrice)}</div></div>
-                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Value</div><div style={{ fontSize: 15, fontWeight: 600, color: 'var(--success)' }}>{formatCurrency(displayStockPrice * asset.holdingQuantity)}</div></div>
+                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Price</div><div style={{ fontSize: 15, fontWeight: 600, color: displayStockPrice >= asset.avgBuyPrice ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(displayStockPrice)}</div></div>
+                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Value</div><div style={{ fontSize: 15, fontWeight: 600, color: displayStockPrice >= asset.avgBuyPrice ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(displayStockPrice * asset.holdingQuantity)}</div></div>
+                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Holding Period</div><div style={{ fontSize: 15, fontWeight: 500 }}>{stockMetrics?.text || '-'}</div></div>
+                 <div title="Compound Annual Growth Rate"><div style={{ fontSize: 12, color: 'var(--text-muted)', borderBottom: '1px dashed #ccc', display: 'inline-block', cursor: 'help' }}>Est. CAGR</div><div style={{ fontSize: 15, fontWeight: 600, color: stockMetrics?.cagr >= 0 ? 'var(--success)' : 'var(--danger)' }}>{stockMetrics?.cagr > 0 ? '+' : ''}{stockMetrics?.cagr?.toFixed(2)}%</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Invested</div><div style={{ fontSize: 15, fontWeight: 500 }}>{formatCurrency(asset.totalInvested)}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Sold</div><div style={{ fontSize: 15, fontWeight: 500 }}>{formatCurrency(asset.totalSold)}</div></div>
               </div>

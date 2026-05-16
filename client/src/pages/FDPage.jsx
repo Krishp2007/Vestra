@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
-import { formatCurrency, formatDate, getStatusColor, COMPOUNDING_OPTIONS } from '../utils/helpers';
+import { formatCurrency, formatDate, getStatusColor, COMPOUNDING_OPTIONS, INDIAN_BANKS } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, X, Clock, XOctagon } from 'lucide-react';
+import { Plus, Trash2, Edit, X, Clock, XOctagon, RefreshCw, AlertTriangle } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import SearchSelect from '../components/SearchSelect';
 
 export default function FDPage() {
   const [fds, setFds] = useState([]);
@@ -17,7 +19,8 @@ export default function FDPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [form, setForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' });
-  const [breakModal, setBreakModal] = useState({ show: false, fd: null, penaltyPercentage: '', breakDate: new Date().toISOString().slice(0, 10), calculatedAmount: 0 });
+  const [breakModal, setBreakModal] = useState({ show: false, fd: null, penaltyPercentage: 1, breakDate: new Date().toISOString().slice(0, 10), calculatedAmount: 0 });
+  const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
   const navigate = useNavigate();
 
   useEffect(() => { load(); }, []);
@@ -95,9 +98,14 @@ export default function FDPage() {
     setEditId(fd._id); setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this FD?')) return;
-    try { await api.delete(`/fds/${id}`); toast.success('FD deleted'); load(); }
+  const handleDelete = async () => {
+    if (!deleteModal.id) return;
+    try { 
+      await api.delete(`/fds/${deleteModal.id}`); 
+      toast.success('FD deleted'); 
+      setDeleteModal({ show: false, id: null });
+      load(); 
+    }
     catch (e) { toast.error('Error'); }
   };
 
@@ -152,7 +160,6 @@ export default function FDPage() {
           <div className="card table-responsive" style={{ padding: 0 }}>
             <table className="data-table"><thead><tr><th>Bank</th><th>Member</th><th>Principal</th><th>Rate</th><th>Maturity Amt</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>{fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
-                const isBreakable = fd.status === 'active' && new Date(fd.maturityDate) > new Date();
                 return (
                   <tr key={fd._id} onClick={() => setViewingAsset(fd)} style={{ cursor: 'pointer' }} className="hover-row">
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{fd.bankName}<br /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fd.compounding} compounding</span></td>
@@ -161,7 +168,11 @@ export default function FDPage() {
                     <td style={{ fontWeight: 600, color: 'var(--success)' }}>{fd.interestRate}%</td>
                     <td style={{ fontWeight: 600 }}>{formatCurrency(fd.maturityAmount)}</td>
                     <td>{getStatusBadge(fd)}</td>
-                    <td onClick={e => e.stopPropagation()}><div style={{ display: 'flex', gap: 4 }}><button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>{isBreakable && <button className="btn btn-ghost btn-icon btn-sm" title="Break FD" onClick={() => openBreakModal(fd)}><XOctagon size={14} /></button>}<button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => handleDelete(fd._id)}><Trash2 size={14} /></button></div></td>
+                    <td onClick={e => e.stopPropagation()}><div style={{ display: 'flex', gap: 4 }}>
+                      {fd.status === 'active' && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openBreakModal(fd)} title="Break FD"><AlertTriangle size={14} color="var(--danger)" /></button>}
+                      <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>
+                      <button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => setDeleteModal({show:true, id:fd._id})}><Trash2 size={14} /></button>
+                    </div></td>
                   </tr>
                 )
               })}</tbody>
@@ -187,10 +198,32 @@ export default function FDPage() {
             <div className="modal" onClick={e => e.stopPropagation()}>
               <div className="modal-header"><h2 className="modal-title">{editId ? 'Edit' : 'Add'} Fixed Deposit</h2><button className="modal-close" onClick={() => setShowForm(false)}><X size={16} /></button></div>
               <form onSubmit={handleSubmit}>
-                <div className="form-row"><div className="form-group"><label className="form-label">Bank Name *</label><input className="form-input" value={form.bankName} onChange={e => setForm({ ...form, bankName: e.target.value })} required placeholder="e.g. SBI" /></div><div className="form-group"><label className="form-label">Family Member *</label><select className="form-select" value={form.memberId} onChange={e => setForm({ ...form, memberId: e.target.value })} required>{members.map(m => <option key={m._id} value={m._id}>{m.avatar} {m.name}</option>)}</select></div></div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Bank Name *</label>
+                    <SearchSelect 
+                      options={INDIAN_BANKS} 
+                      value={form.bankName} 
+                      onChange={val => setForm({...form, bankName: val})} 
+                      placeholder="Search bank..." 
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Family Member *</label>
+                    <SearchSelect 
+                      options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} 
+                      value={form.memberId} 
+                      onChange={val => setForm({...form, memberId: val})} 
+                      placeholder="Select member..." 
+                      searchKey="searchLabel"
+                      required 
+                    />
+                  </div>
+                </div>
                 <div className="form-row"><div className="form-group"><label className="form-label">Principal (₹) *</label><input className="form-input" type="number" value={form.principalAmount} onChange={e => setForm({ ...form, principalAmount: e.target.value })} required min="1000" /></div><div className="form-group"><label className="form-label">Interest Rate (%) *</label><input className="form-input" type="number" step="0.01" value={form.interestRate} onChange={e => setForm({ ...form, interestRate: e.target.value })} required /></div></div>
                 <div className="form-row"><div className="form-group"><label className="form-label">Start Date *</label><input className="form-input" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required /></div><div className="form-group"><label className="form-label">Duration (Days) *</label><input className="form-input" type="number" placeholder="e.g. 444" value={form.durationDays} onChange={e => setForm({ ...form, durationDays: e.target.value })} required /></div></div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Compounding</label><select className="form-select" value={form.compounding} onChange={e => setForm({ ...form, compounding: e.target.value })}>{COMPOUNDING_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}</select></div><div className="form-group"><label className="form-label">Nominee</label><input className="form-input" value={form.nominee} onChange={e => setForm({ ...form, nominee: e.target.value })} /></div></div>
+                <div className="form-row"><div className="form-group"><label className="form-label">Compounding</label><SearchSelect options={COMPOUNDING_OPTIONS} value={form.compounding} onChange={val => setForm({...form, compounding: val})} placeholder="Compounding" /></div><div className="form-group"><label className="form-label">Nominee</label><input className="form-input" value={form.nominee} onChange={e => setForm({ ...form, nominee: e.target.value })} /></div></div>
                 <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.isAutoRenew} onChange={e => setForm({ ...form, isAutoRenew: e.target.checked })} /><label className="form-label" style={{ margin: 0 }}>Auto-renew on maturity</label></div>
                 <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button><button type="submit" className="btn btn-primary">{editId ? 'Update' : 'Add'} FD</button></div>
               </form>
@@ -216,6 +249,15 @@ export default function FDPage() {
               </form>
             </div>
           </div>
+        )}
+
+        {deleteModal.show && (
+          <DeleteConfirmModal 
+            title="Delete Fixed Deposit" 
+            message="Are you sure you want to permanently delete this FD? This action cannot be undone." 
+            onConfirm={handleDelete} 
+            onCancel={() => setDeleteModal({ show: false, id: null })} 
+          />
         )}
 
         <AssetDetailsModal asset={viewingAsset} type="fd" onClose={() => setViewingAsset(null)} />
