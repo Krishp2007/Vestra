@@ -201,21 +201,40 @@ function getMonthlyInvestmentData(sips, fds, stocks) {
 
     let sipAmount = 0;
     sips.forEach(sip => {
-      sip.payments?.forEach(p => {
-        if (p.status === 'completed') {
-          const payDate = new Date(p.date);
-          if (payDate.getFullYear() === date.getFullYear() && payDate.getMonth() === date.getMonth()) {
-            sipAmount += p.amount || 0;
+      const monthPayments = sip.payments?.filter(p => {
+        const payDate = new Date(p.date);
+        return payDate.getFullYear() === date.getFullYear() && payDate.getMonth() === date.getMonth();
+      }) || [];
+
+      if (monthPayments.length > 0) {
+        sipAmount += monthPayments.reduce((sum, p) => p.status === 'completed' ? sum + (p.amount || 0) : sum, 0);
+      } else if (sip.status === 'active') {
+        const startDate = new Date(sip.startDate);
+        const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const currentLoopMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const isCurrentMonth = currentLoopMonth.getFullYear() === now.getFullYear() && currentLoopMonth.getMonth() === now.getMonth();
+        
+        if (currentLoopMonth >= startMonth && currentLoopMonth <= now) {
+          // If it's the current month, only show if the SIP date has passed
+          if (isCurrentMonth) {
+            if (sip.sipDate <= now.getDate()) {
+              sipAmount += sip.amountPerMonth || 0;
+            }
+          } else {
+            sipAmount += sip.amountPerMonth || 0;
           }
         }
-      });
+      }
     });
 
     let fdAmount = 0;
     fds.forEach(fd => {
       const startDate = new Date(fd.startDate);
       if (startDate.getFullYear() === date.getFullYear() && startDate.getMonth() === date.getMonth()) {
-        fdAmount += fd.principalAmount || 0;
+        // Only count FD if the start date has actually passed (prevents future FDs from showing in current month bar)
+        if (startDate <= now) {
+          fdAmount += fd.principalAmount || 0;
+        }
       }
     });
 

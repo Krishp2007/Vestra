@@ -4,7 +4,7 @@ import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatDate, getStatusColor, SIP_CATEGORIES } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, X, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Edit, X } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import SearchSelect from '../components/SearchSelect';
@@ -21,17 +21,23 @@ export default function SIPPage() {
   const itemsPerPage = 10;
   const [form, setForm] = useState({ fundName: '', schemeCode: '', memberId: '', amountPerMonth: '', sipDate: 1, startDate: '', category: 'Equity', status: 'active', totalInvested: '', totalUnits: '', notes: '' });
   const [suggestions, setSuggestions] = useState([]);
-  const [priceLoading, setPriceLoading] = useState({});
   const navigate = useNavigate();
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { 
+    load(); 
+    const interval = setInterval(load, 30000); // Auto-refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const load = async () => {
     try {
       const [s, m] = await Promise.all([api.get('/sips'), api.get('/members')]);
       setSips(s.data.data); setMembers(m.data.data);
-    } catch (e) { toast.error('Error loading SIPs'); }
-    finally { setLoading(false); }
+    } catch (e) { 
+      console.error('Error loading SIPs:', e);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -85,28 +91,6 @@ export default function SIPPage() {
     }
   };
 
-  const fetchPrice = async (sip) => {
-    if (!sip.schemeCode || !sip.totalUnits) {
-      toast.error('Edit this SIP to search and select the exact Fund Name, and add your Total Units!');
-      return;
-    }
-    setPriceLoading(p => ({...p, [sip._id]: true}));
-    try {
-      const res = await fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`);
-      const data = await res.json();
-      if (data.data && data.data.length > 0) {
-        const nav = parseFloat(data.data[0].nav);
-        const newValue = nav * sip.totalUnits;
-        await api.put(`/sips/${sip._id}`, { currentValue: newValue });
-        toast.success(`Latest NAV: ₹${nav}`);
-        load();
-      } else {
-        throw new Error('No NAV data');
-      }
-    } catch(e) { toast.error(`Could not fetch NAV for ${sip.fundName}`); }
-    finally { setPriceLoading(p => ({...p, [sip._id]: false})); }
-  };
-
   const handleDelete = async () => {
     if (!deleteModal.id) return;
     try { 
@@ -153,7 +137,6 @@ export default function SIPPage() {
                       <td><span className={`badge ${getStatusColor(sip.status)}`}>{sip.status}</span></td>
                       <td onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => fetchPrice(sip)} disabled={priceLoading[sip._id]} title="Refresh NAV"><RefreshCw size={14} className={priceLoading[sip._id]?'spin':''}/></button>
                           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleEdit(sip)}><Edit size={14} /></button>
                           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setDeleteModal({show: true, id: sip._id})}><Trash2 size={14} /></button>
                         </div>

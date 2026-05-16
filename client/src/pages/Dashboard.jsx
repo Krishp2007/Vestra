@@ -97,7 +97,29 @@ export default function Dashboard() {
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
                       {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                     </Pie>
-                    <Tooltip formatter={(v) => `${v}%`} contentStyle={{background:'var(--bg-secondary)',border:'1px solid var(--border-color)',borderRadius:'8px',color:'var(--text-primary)'}} />
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div style={{ 
+                              background: 'rgba(23, 23, 37, 0.95)', 
+                              border: '1px solid var(--border-color)', 
+                              padding: '10px 14px', 
+                              borderRadius: '12px', 
+                              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                              backdropFilter: 'blur(8px)'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: payload[0].payload.fill }} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>{payload[0].name}:</span>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>{payload[0].value}%</span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }} 
+                    />
                   </PieChart>
                 </ResponsiveContainer>
                 <div style={{flex:1}}>
@@ -121,15 +143,58 @@ export default function Dashboard() {
               <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Last 12 months breakdown</div></div>
             </div>
             {monthlyData.some(m => m.total > 0) ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="month" tick={{fill:'var(--text-muted)',fontSize:11}} axisLine={false} tickLine={false} />
-                  <YAxis tick={{fill:'var(--text-muted)',fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v => v>=100000 ? `${v/100000}L` : v>=1000 ? `${v/1000}K` : v} />
-                  <Tooltip contentStyle={{background:'var(--bg-secondary)',border:'1px solid var(--border-color)',borderRadius:'8px',color:'var(--text-primary)'}} formatter={(v) => formatCurrency(v)} />
-                  <Bar dataKey="sip" name="SIP" fill="#4f46e5" radius={[3,3,0,0]} />
-                  <Bar dataKey="fd" name="FD" fill="#10b981" radius={[3,3,0,0]} />
-                  <Bar dataKey="stocks" name="Stocks" fill="#f59e0b" radius={[3,3,0,0]} />
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{fill:'var(--text-muted)', fontSize:11}} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    tick={{fill:'var(--text-muted)', fontSize:11}} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tickFormatter={v => v >= 100000 ? `${v/100000}L` : v >= 1000 ? `${v/1000}K` : v} 
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255,255,255,0.05)', radius: 4 }}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="custom-tooltip" style={{ 
+                            background: 'rgba(23, 23, 37, 0.95)', 
+                            border: '1px solid var(--border-color)', 
+                            padding: '12px', 
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(8px)'
+                          }}>
+                            <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</p>
+                            {payload.map((entry, index) => (
+                              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: index === payload.length - 1 ? 0 : '4px' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: entry.fill }} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', flex: 1 }}>{entry.name}:</span>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(entry.value)}</span>
+                              </div>
+                            ))}
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Total:</span>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
+                                {formatCurrency(payload.reduce((acc, curr) => acc + curr.value, 0))}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }} 
+                  />
+                  <Bar dataKey="sip" name="SIP" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={20} />
+                  <Bar dataKey="fd" name="FD" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={20} />
+                  <Bar dataKey="stocks" name="Stocks" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
