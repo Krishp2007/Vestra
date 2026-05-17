@@ -43,9 +43,9 @@ exports.getMemberDashboard = async (req, res) => {
     const stockCurrentValue = stocks.reduce((sum, s) => sum + (s.currentValue || 0), 0);
     const stockTotalSold = stocks.reduce((sum, s) => sum + (s.totalSold || 0), 0);
 
-    // Total portfolio
-    const totalInvested = sipTotalInvested + fdTotalPrincipal + stockTotalInvested - stockTotalSold;
-    const totalCurrentValue = sipCurrentValue + fdTotalMaturity + stockCurrentValue;
+    // Total portfolio (matches family dashboard formula)
+    const totalInvested = sipTotalInvested + fdTotalPrincipal + stockTotalInvested;
+    const totalCurrentValue = sipCurrentValue + fdTotalPrincipal + stockCurrentValue;
     const totalReturns = totalInvested > 0
       ? ((totalCurrentValue - totalInvested) / totalInvested) * 100
       : 0;
