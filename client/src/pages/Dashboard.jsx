@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [topHoldings, setTopHoldings] = useState([]);
   const [viewingAsset, setViewingAsset] = useState(null);
   const [viewingAssetType, setViewingAssetType] = useState(null);
+  const [chartRange, setChartRange] = useState(6);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -223,11 +224,26 @@ export default function Dashboard() {
           {/* Monthly Trend */}
           <div className="card">
             <div className="card-header">
-              <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Last 12 months breakdown</div></div>
+              <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Investment breakdown over time</div></div>
+              <div style={{ display: 'flex', gap: 4, padding: 3, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                {[3, 6, 12].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setChartRange(n)}
+                    style={{
+                      padding: '4px 10px', borderRadius: 'calc(var(--radius-md) - 2px)', border: 'none',
+                      cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: chartRange === n ? 'var(--accent)' : 'transparent',
+                      color: chartRange === n ? '#fff' : 'var(--text-muted)',
+                      transition: 'all 0.2s'
+                    }}
+                  >{n}M</button>
+                ))}
+              </div>
             </div>
-            {monthlyData.some(m => m.total > 0) ? (
+            {monthlyData.slice(-chartRange).some(m => m.total > 0) ? (
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={monthlyData.slice(-chartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
                   <XAxis 
                     dataKey="month" 

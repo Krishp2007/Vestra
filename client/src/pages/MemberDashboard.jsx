@@ -14,6 +14,7 @@ export default function MemberDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [memberChartRange, setMemberChartRange] = useState(6);
   const [memberStocks, setMemberStocks] = useState([]);
   const [memberSips, setMemberSips] = useState([]);
   const [memberFds, setMemberFds] = useState([]);
@@ -169,11 +170,26 @@ export default function MemberDashboard() {
 
           <div className="card">
             <div className="card-header">
-              <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Last 12 months</div></div>
+              <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Investment breakdown over time</div></div>
+              <div style={{ display: 'flex', gap: 4, padding: 3, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                {[3, 6, 12].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setMemberChartRange(n)}
+                    style={{
+                      padding: '4px 10px', borderRadius: 'calc(var(--radius-md) - 2px)', border: 'none',
+                      cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: memberChartRange === n ? 'var(--accent)' : 'transparent',
+                      color: memberChartRange === n ? '#fff' : 'var(--text-muted)',
+                      transition: 'all 0.2s'
+                    }}
+                  >{n}M</button>
+                ))}
+              </div>
             </div>
-            {data.monthlyData?.some(m=>m.total>0) ? (
+            {data.monthlyData?.slice(-memberChartRange).some(m=>m.total>0) ? (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data.monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={data.monthlyData.slice(-memberChartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false}/>
                   <XAxis dataKey="month" tick={{fill:'var(--text-muted)',fontSize:11}} axisLine={false} tickLine={false}/>
                   <YAxis tick={{fill:'var(--text-muted)',fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v=>v>=100000?`${v/100000}L`:v>=1000?`${v/1000}K`:v}/>
