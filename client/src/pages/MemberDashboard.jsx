@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
@@ -19,7 +19,13 @@ export default function MemberDashboard() {
   const [memberFds, setMemberFds] = useState([]);
   const [viewingAsset, setViewingAsset] = useState(null);
   const [viewingAssetType, setViewingAssetType] = useState(null);
+  const holdingsRef = useRef(null);
   const navigate = useNavigate();
+
+  const scrollToTab = (tab) => {
+    setActiveTab(tab);
+    setTimeout(() => holdingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
 
   useEffect(() => { load(); }, [memberId]);
 
@@ -97,19 +103,19 @@ export default function MemberDashboard() {
             <div className="stat-value">{formatCurrency(s.totalCurrentValue)}</div>
             <div className={`stat-change ${isPos?'up':'down'}`}>{isPos?<ArrowUpRight size={14}/>:<ArrowDownRight size={14}/>}{formatPercent(s.totalReturns)}</div>
           </div>
-          <div className="stat-card" onClick={() => setActiveTab('sips')} style={{ cursor: 'pointer' }}>
+          <div className="stat-card" onClick={() => scrollToTab('sips')} style={{ cursor: 'pointer' }}>
             <div className="stat-icon green">💎</div>
             <div className="stat-label">Mutual Funds</div>
             <div className="stat-value">{data.sip?.active||0} <span style={{fontSize:14,color:'var(--text-muted)'}}>active</span></div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Invested: {formatCurrency(data.sip?.invested || 0)}</div>
           </div>
-          <div className="stat-card" onClick={() => setActiveTab('fds')} style={{ cursor: 'pointer' }}>
+          <div className="stat-card" onClick={() => scrollToTab('fds')} style={{ cursor: 'pointer' }}>
             <div className="stat-icon blue">🏦</div>
             <div className="stat-label">Fixed Deposits</div>
             <div className="stat-value">{data.fd?.active||0} <span style={{fontSize:14,color:'var(--text-muted)'}}>active</span></div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Principal: {formatCurrency(data.fd?.principal || 0)}</div>
           </div>
-          <div className="stat-card" onClick={() => setActiveTab('stocks')} style={{ cursor: 'pointer' }}>
+          <div className="stat-card" onClick={() => scrollToTab('stocks')} style={{ cursor: 'pointer' }}>
             <div className="stat-icon amber">📈</div>
             <div className="stat-label">Stocks</div>
             <div className="stat-value">{data.stocks?.total||0} <span style={{fontSize:14,color:'var(--text-muted)'}}>holdings</span></div>
@@ -193,7 +199,7 @@ export default function MemberDashboard() {
         </div>
 
         {/* Holdings Tabs */}
-        <div className="card" style={{ marginBottom: 28 }}>
+        <div className="card" ref={holdingsRef} style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', gap: 4, padding: '4px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', marginBottom: 16 }}>
             {tabs.map(tab => (
               <button
