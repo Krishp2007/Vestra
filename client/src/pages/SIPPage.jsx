@@ -74,8 +74,16 @@ export default function SIPPage() {
     }
     try {
       const res = await fetch(`https://api.mfapi.in/mf/search?q=${query}`);
-      const data = await res.json();
-      setSuggestions(data.slice(0, 15));
+      let data = await res.json();
+      
+      // Sort to prioritize Direct Growth plans
+      data.sort((a, b) => {
+        const aScore = (a.schemeName.toLowerCase().includes('direct') ? 2 : 0) + (a.schemeName.toLowerCase().includes('growth') ? 1 : 0);
+        const bScore = (b.schemeName.toLowerCase().includes('direct') ? 2 : 0) + (b.schemeName.toLowerCase().includes('growth') ? 1 : 0);
+        return bScore - aScore;
+      });
+
+      setSuggestions(data.slice(0, 30)); // Show top 30 options
     } catch (e) {
       // ignore
     }
@@ -119,7 +127,7 @@ export default function SIPPage() {
           <div className="card table-responsive" style={{ padding: 0 }}>
             <table className="data-table">
               <thead><tr>
-                <th>Fund Name</th><th>Member</th><th>Monthly</th><th>Invested</th><th>Current Value</th><th>Returns</th><th>Status</th><th>Actions</th>
+                <th>Fund Name</th><th>Member</th><th>Invested</th><th>Current Value</th><th>Returns</th><th>Status</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 {sips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(sip => {
@@ -128,7 +136,6 @@ export default function SIPPage() {
                     <tr key={sip._id} onClick={() => setViewingAsset(sip)} style={{ cursor: 'pointer' }} className="hover-row">
                       <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sip.fundName}<br /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sip.category}</span></td>
                       <td>{sip.memberId?.avatar} {sip.memberId?.name || '-'}</td>
-                      <td>{formatCurrency(sip.amountPerMonth)}</td>
                       <td>{formatCurrency(sip.totalInvested)}</td>
                       <td style={{ fontWeight: 600 }}>{formatCurrency(sip.currentValue)}</td>
                       <td style={{ color: ret >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>

@@ -208,19 +208,43 @@ function getMonthlyInvestmentData(sips, fds, stocks) {
 
       if (monthPayments.length > 0) {
         sipAmount += monthPayments.reduce((sum, p) => p.status === 'completed' ? sum + (p.amount || 0) : sum, 0);
-      } else if (sip.status === 'active') {
+      } else {
+        // Implicit calculation bound by ACTUAL historical invested money
         const startDate = new Date(sip.startDate);
         const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
         const currentLoopMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-        const isCurrentMonth = currentLoopMonth.getFullYear() === now.getFullYear() && currentLoopMonth.getMonth() === now.getMonth();
         
-        if (currentLoopMonth >= startMonth && currentLoopMonth <= now) {
-          // If it's the current month, only show if the SIP date has passed
+        // Calculate how much was invested BEFORE the cron system started adding explicit payments
+        const explicitPaymentsTotal = sip.payments?.reduce((sum, p) => p.status === 'completed' ? sum + (p.amount || 0) : sum, 0) || 0;
+        const historicalInvested = Math.max(0, (sip.totalInvested || 0) - explicitPaymentsTotal);
+        
+        // Math limit: How many historical months does the remaining money cover?
+        const safeAmountPerMonth = sip.amountPerMonth > 0 ? sip.amountPerMonth : 1;
+        const totalExpectedPayments = Math.floor(historicalInvested / safeAmountPerMonth);
+        
+        const maxValidMonth = new Date(startMonth);
+        maxValidMonth.setMonth(maxValidMonth.getMonth() + totalExpectedPayments - 1);
+        
+        // Status limit: Did they explicitly pause/complete it?
+        let statusEndBoundary = now;
+        if (sip.status !== 'active') {
+          statusEndBoundary = sip.endDate ? new Date(sip.endDate) : new Date(sip.updatedAt || now);
+        }
+        const statusEndMonth = new Date(statusEndBoundary.getFullYear(), statusEndBoundary.getMonth(), 1);
+
+        // The true end month is whichever comes FIRST (Math limit or Status limit)
+        const finalEndMonth = maxValidMonth < statusEndMonth ? maxValidMonth : statusEndMonth;
+
+        if (currentLoopMonth >= startMonth && currentLoopMonth <= finalEndMonth) {
+          const isCurrentMonth = currentLoopMonth.getFullYear() === now.getFullYear() && currentLoopMonth.getMonth() === now.getMonth();
+          
           if (isCurrentMonth) {
+            // Only show current month if the date has arrived
             if (sip.sipDate <= now.getDate()) {
               sipAmount += sip.amountPerMonth || 0;
             }
           } else {
+            // Safely in the past and within the paid limit
             sipAmount += sip.amountPerMonth || 0;
           }
         }

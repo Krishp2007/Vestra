@@ -192,14 +192,25 @@ exports.searchStocks = async (req, res) => {
     if (!query || query.length < 2) return res.json({ success: true, quotes: [] });
 
     const response = await fetch(
-      `https://query2.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=5`,
+      `https://query2.finance.yahoo.com/v1/finance/search?q=${query}&quotesCount=20`,
       { headers: { 'User-Agent': 'Mozilla/5.0' } }
     );
     
     if (response.ok) {
       const data = await response.json();
-      const quotes = data.quotes ? data.quotes.filter(q => q.quoteType === 'EQUITY' || q.quoteType === 'MUTUALFUND') : [];
-      return res.json({ success: true, quotes });
+      const allowedTypes = ['EQUITY', 'MUTUALFUND', 'ETF', 'INDEX'];
+      let quotes = data.quotes ? data.quotes.filter(q => allowedTypes.includes(q.quoteType)) : [];
+      
+      // Prioritize Indian exchanges (NSE/BSE) so SMEs and Indian ETFs show up first
+      quotes.sort((a, b) => {
+        const aIsIndian = a.exchange === 'NSI' || a.exchange === 'BSE' || a.symbol.endsWith('.NS') || a.symbol.endsWith('.BO');
+        const bIsIndian = b.exchange === 'NSI' || b.exchange === 'BSE' || b.symbol.endsWith('.NS') || b.symbol.endsWith('.BO');
+        if (aIsIndian && !bIsIndian) return -1;
+        if (!aIsIndian && bIsIndian) return 1;
+        return 0;
+      });
+
+      return res.json({ success: true, quotes: quotes.slice(0, 10) }); // Return top 10 after sorting
     }
     
     res.json({ success: true, quotes: [] });
