@@ -1,5 +1,10 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const SIP = require('../models/SIP');
+const FD = require('../models/FD');
+const Stock = require('../models/Stock');
+const FamilyMember = require('../models/FamilyMember');
+const Alert = require('../models/Alert');
 const { v4: uuidv4 } = require('uuid');
 
 // Generate JWT
@@ -149,5 +154,67 @@ exports.updateProfile = async (req, res) => {
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ message: 'Server error updating profile' });
+  }
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Please provide current and new password' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) return res.status(401).json({ message: 'Current password is incorrect' });
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Server error changing password' });
+  }
+};
+
+// @desc    Delete account permanently
+// @route   DELETE /api/auth/delete-account
+exports.deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'Please provide your password to confirm deletion' });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) return res.status(401).json({ message: 'Password is incorrect' });
+
+    const familyId = user.familyId;
+
+    // Delete ALL data associated with this family
+    await Promise.all([
+      SIP.deleteMany({ familyId }),
+      FD.deleteMany({ familyId }),
+      Stock.deleteMany({ familyId }),
+      FamilyMember.deleteMany({ familyId }),
+      Alert.deleteMany({ familyId }),
+      User.findByIdAndDelete(user._id)
+    ]);
+
+    res.json({ success: true, message: 'Account and all data permanently deleted' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ message: 'Server error deleting account' });
   }
 };
