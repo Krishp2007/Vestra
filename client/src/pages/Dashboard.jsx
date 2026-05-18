@@ -4,33 +4,68 @@ import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatPercent } from '../utils/helpers';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { Users, TrendingUp, Landmark, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Users, TrendingUp, Landmark, BarChart3, ArrowUpRight, ArrowDownRight, ChevronRight, Eye, Zap, Clock, Award } from 'lucide-react';
+import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 
-const PIE_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
+const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [topHoldings, setTopHoldings] = useState([]);
+  const [viewingAsset, setViewingAsset] = useState(null);
+  const [viewingAssetType, setViewingAssetType] = useState(null);
+  const [chartRange, setChartRange] = useState(6);
   const navigate = useNavigate();
 
   useEffect(() => {
     loadDashboard();
+    const interval = setInterval(loadDashboard, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadDashboard = async () => {
     try {
-      const [dashRes, memRes] = await Promise.all([
+      const [dashRes, memRes, stocksRes, sipsRes, fdsRes] = await Promise.all([
         api.get('/dashboard/family'),
-        api.get('/members')
+        api.get('/members'),
+        api.get('/stocks'),
+        api.get('/sips'),
+        api.get('/fds')
       ]);
       setData(dashRes.data.data);
       setMembers(memRes.data.data);
+
+      // Build top holdings from all assets
+      const holdings = [];
+      (stocksRes.data.data || []).forEach(s => {
+        const currentVal = (s.currentPrice || s.avgBuyPrice) * (s.holdingQuantity || 0);
+        const invested = s.totalInvested || 0;
+        const ret = invested > 0 ? ((currentVal - invested) / invested) * 100 : 0;
+        holdings.push({ id: s._id, name: s.symbol, type: 'stock', invested, currentValue: currentVal, returns: ret, data: s });
+      });
+      (sipsRes.data.data || []).forEach(s => {
+        const ret = s.totalInvested > 0 ? ((s.currentValue - s.totalInvested) / s.totalInvested) * 100 : 0;
+        holdings.push({ id: s._id, name: s.fundName, type: 'sip', invested: s.totalInvested, currentValue: s.currentValue || 0, returns: ret, data: s });
+      });
+      (fdsRes.data.data || []).forEach(f => {
+        const ret = f.principalAmount > 0 ? ((f.maturityAmount - f.principalAmount) / f.principalAmount) * 100 : 0;
+        holdings.push({ id: f._id, name: f.bankName, type: 'fd', invested: f.principalAmount, currentValue: f.maturityAmount || f.principalAmount, returns: ret, data: f });
+      });
+
+      holdings.sort((a, b) => Math.abs(b.returns) - Math.abs(a.returns));
+      setTopHoldings(holdings.slice(0, 6));
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const openAssetDetail = (holding) => {
+    setViewingAsset(holding.data);
+    setViewingAssetType(holding.type);
   };
 
   if (loading) return (<><Topbar title="Family Dashboard" /><div className="page-content"><div className="page-loading"><div className="spinner" /><p style={{color:'var(--text-muted)'}}>Loading dashboard...</p></div></div></>);
@@ -42,10 +77,24 @@ export default function Dashboard() {
   const isPositive = (summary.absoluteReturns || 0) >= 0;
 
   const pieData = [
-    { name: 'Mutual Funds', value: allocation.sip || 0 },
-    { name: 'Fixed Deposits', value: allocation.fd || 0 },
-    { name: 'Stocks', value: allocation.stocks || 0 },
+    { name: 'Mutual Funds', value: allocation.sip || 0, route: '/sips' },
+    { name: 'Fixed Deposits', value: allocation.fd || 0, route: '/fds' },
+    { name: 'Stocks', value: allocation.stocks || 0, route: '/stocks' },
   ].filter(d => d.value > 0);
+
+  const getTypeIcon = (type) => {
+    if (type === 'stock') return '📈';
+    if (type === 'sip') return '💎';
+    if (type === 'fd') return '🏦';
+    return '💰';
+  };
+
+  const getTypeLabel = (type) => {
+    if (type === 'stock') return 'Stock';
+    if (type === 'sip') return 'Mutual Fund';
+    if (type === 'fd') return 'Fixed Deposit';
+    return type;
+  };
 
   return (
     <>
@@ -66,6 +115,7 @@ export default function Dashboard() {
             <div className="stat-icon green">📈</div>
             <div className="stat-label">Total Invested</div>
             <div className="stat-value">{formatCurrency(summary.totalInvested || 0)}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{summary.totalSips || 0} SIPs · {summary.totalFds || 0} FDs · {summary.totalStocks || 0} Stocks</div>
           </div>
           <div className="stat-card">
             <div className="stat-icon blue">
@@ -73,14 +123,42 @@ export default function Dashboard() {
             </div>
             <div className="stat-label">Total Returns</div>
             <div className="stat-value" style={{color: isPositive ? 'var(--success)' : 'var(--danger)'}}>
-              {formatCurrency(Math.abs(summary.absoluteReturns || 0))}
+              {isPositive ? '+' : '-'}{formatCurrency(Math.abs(summary.absoluteReturns || 0))}
             </div>
           </div>
-          <div className="stat-card">
+          <div className="stat-card" onClick={() => navigate('/members')} style={{ cursor: 'pointer' }}>
             <div className="stat-icon amber">👨‍👩‍👧‍👦</div>
             <div className="stat-label">Family Members</div>
             <div className="stat-value">{summary.totalMembers || members.length || 0}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Click to manage members</div>
           </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
+          {[
+            { icon: <TrendingUp size={18}/>, label: 'Add Stock', path: '/stocks', color: '#f59e0b' },
+            { icon: <Landmark size={18}/>, label: 'Add FD', path: '/fds', color: '#10b981' },
+            { icon: <BarChart3 size={18}/>, label: 'Add SIP', path: '/sips', color: '#6366f1' },
+            { icon: <Eye size={18}/>, label: 'Insights', path: '/insights', color: '#8b5cf6' },
+          ].map(action => (
+            <button
+              key={action.label}
+              className="btn btn-ghost"
+              onClick={() => navigate(action.path)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px',
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-lg)', justifyContent: 'flex-start',
+                transition: 'all 0.2s ease', fontWeight: 500, fontSize: 13
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = action.color; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <span style={{ color: action.color }}>{action.icon}</span>
+              {action.label}
+            </button>
+          ))}
         </div>
 
         {/* Charts Row */}
@@ -94,7 +172,10 @@ export default function Dashboard() {
               <div className="pie-container">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
+                    <Pie
+                      data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                      paddingAngle={4} dataKey="value"
+                    >
                       {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                     </Pie>
                     <Tooltip 
@@ -124,7 +205,10 @@ export default function Dashboard() {
                 </ResponsiveContainer>
                 <div style={{flex:1}}>
                   {pieData.map((item, i) => (
-                    <div key={item.name} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px'}}>
+                    <div
+                      key={item.name}
+                      style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px', padding: '6px 8px', borderRadius: 8}}
+                    >
                       <span style={{width:10,height:10,borderRadius:3,background:PIE_COLORS[i],flexShrink:0}} />
                       <span style={{fontSize:13,color:'var(--text-secondary)',flex:1}}>{item.name}</span>
                       <span style={{fontSize:14,fontWeight:600}}>{item.value}%</span>
@@ -140,11 +224,26 @@ export default function Dashboard() {
           {/* Monthly Trend */}
           <div className="card">
             <div className="card-header">
-              <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Last 12 months breakdown</div></div>
+              <div><div className="card-title">Monthly Investments</div><div className="card-subtitle">Investment breakdown over time</div></div>
+              <div style={{ display: 'flex', gap: 4, padding: 3, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                {[3, 6, 12].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setChartRange(n)}
+                    style={{
+                      padding: '4px 10px', borderRadius: 'calc(var(--radius-md) - 2px)', border: 'none',
+                      cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: chartRange === n ? 'var(--accent)' : 'transparent',
+                      color: chartRange === n ? '#fff' : 'var(--text-muted)',
+                      transition: 'all 0.2s'
+                    }}
+                  >{n}M</button>
+                ))}
+              </div>
             </div>
-            {monthlyData.some(m => m.total > 0) ? (
+            {monthlyData.slice(-chartRange).some(m => m.total > 0) ? (
               <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={monthlyData.slice(-chartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
                   <XAxis 
                     dataKey="month" 
@@ -203,26 +302,80 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Family Members */}
+        {/* Top Holdings - Clickable Details */}
+        {topHoldings.length > 0 && (
+          <div className="card" style={{ marginBottom: 28 }}>
+            <div className="card-header">
+              <div><div className="card-title">🏆 Top Holdings</div><div className="card-subtitle">Click any holding for detailed breakdown</div></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+              {topHoldings.map(h => {
+                const isUp = h.returns >= 0;
+                return (
+                  <div
+                    key={h.id}
+                    onClick={() => openAssetDetail(h)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+                      background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border-color)', cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = isUp ? 'var(--success)' : 'var(--danger)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-glow)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                  >
+                    <div style={{ fontSize: 28, lineHeight: 1 }}>{getTypeIcon(h.type)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{getTypeLabel(h.type)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{formatCurrency(h.currentValue)}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: isUp ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
+                        {isUp ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
+                        {isUp ? '+' : ''}{h.returns.toFixed(1)}%
+                      </div>
+                    </div>
+                    <ChevronRight size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Family Members - Enhanced */}
         <div className="card" style={{marginBottom:'28px'}}>
           <div className="card-header">
-            <div><div className="card-title">Family Members</div><div className="card-subtitle">Click a member to view details</div></div>
+            <div><div className="card-title">Family Members</div><div className="card-subtitle">Click a member to view their portfolio</div></div>
             <button className="btn btn-secondary btn-sm" onClick={() => navigate('/members')}>Manage</button>
           </div>
           {members.length > 0 ? (
             <div className="members-grid">
-              {memberBreakdown.length > 0 ? memberBreakdown.map(m => (
-                <div key={m.member._id} className="member-card" onClick={() => navigate(`/member/${m.member._id}`)}>
-                  <div className="member-avatar">{m.member.avatar || '👤'}</div>
-                  <div className="member-name">{m.member.name}</div>
-                  <div className="member-relation">{m.member.relation}</div>
-                  <div style={{marginTop:'12px',fontSize:18,fontWeight:700}}>{formatCurrency(m.totalInvested || 0)}</div>
-                  <div style={{fontSize:11,color:'var(--text-muted)'}}>Total Invested</div>
-                  <div style={{fontSize:12,color:'var(--text-muted)',marginTop:4}}>
-                    {m.sipCount} SIPs · {m.fdCount} FDs · {m.stockCount} Stocks
+              {memberBreakdown.length > 0 ? memberBreakdown.map(m => {
+                const memberReturn = m.totalInvested > 0 ? ((m.totalValue - m.totalInvested) / m.totalInvested * 100) : 0;
+                const mIsPos = memberReturn >= 0;
+                return (
+                  <div key={m.member._id} className="member-card" onClick={() => navigate(`/member/${m.member._id}`)}>
+                    <div className="member-avatar">{m.member.avatar || '👤'}</div>
+                    <div className="member-name">{m.member.name}</div>
+                    <div className="member-relation">{m.member.relation}</div>
+                    <div style={{marginTop:'12px',fontSize:18,fontWeight:700}}>{formatCurrency(m.totalInvested || 0)}</div>
+                    <div style={{fontSize:11,color:'var(--text-muted)'}}>Total Invested</div>
+                    <div style={{ 
+                      fontSize: 12, fontWeight: 600, marginTop: 6, 
+                      color: mIsPos ? 'var(--success)' : 'var(--danger)',
+                      display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center'
+                    }}>
+                      {mIsPos ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
+                      {mIsPos ? '+' : ''}{memberReturn.toFixed(1)}% returns
+                    </div>
+                    <div style={{fontSize:11,color:'var(--text-muted)',marginTop:6}}>
+                      {m.sipCount} SIPs · {m.fdCount} FDs · {m.stockCount} Stocks
+                    </div>
                   </div>
-                </div>
-              )) : members.map(m => (
+                );
+              }) : members.map(m => (
                 <div key={m._id} className="member-card" onClick={() => navigate(`/member/${m._id}`)}>
                   <div className="member-avatar">{m.avatar || '👤'}</div>
                   <div className="member-name">{m.name}</div>
@@ -245,20 +398,28 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-header">
               <div><div className="card-title">🔔 Recent Alerts</div></div>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/alerts')}>View All</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/alerts')}>View All <ChevronRight size={14} /></button>
             </div>
             {data.alerts.slice(0, 5).map(alert => (
-              <div key={alert._id} className={`alert-item ${!alert.isRead ? 'unread' : ''}`}>
+              <div key={alert._id} className={`alert-item ${!alert.isRead ? 'unread' : ''}`} onClick={() => navigate('/alerts')} style={{ cursor: 'pointer' }}>
                 <div className="alert-icon">{alert.type === 'sip_due' ? '📅' : alert.type === 'fd_maturity' ? '🏦' : '⚠️'}</div>
                 <div className="alert-content">
                   <div className="alert-title">{alert.title}</div>
                   <div className="alert-message">{alert.message}</div>
                 </div>
+                <ChevronRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Asset Detail Modal */}
+      <AssetDetailsModal 
+        asset={viewingAsset} 
+        type={viewingAssetType} 
+        onClose={() => { setViewingAsset(null); setViewingAssetType(null); }} 
+      />
     </>
   );
 }
