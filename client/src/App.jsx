@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import useStore from './store/useStore';
+import api from './utils/api';
 import AppLayout from './components/layout/AppLayout';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
@@ -22,6 +24,16 @@ function ProtectedRoute({ children }) {
 }
 
 export default function App() {
+  const { token, setUser, logout } = useStore();
+
+  useEffect(() => {
+    if (token) {
+      api.get('/auth/me')
+        .then(res => setUser(res.data.user))
+        .catch(() => logout());
+    }
+  }, [token, setUser, logout]);
+
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
     <BrowserRouter>

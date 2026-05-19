@@ -16,9 +16,14 @@ const startCronJobs = () => {
           try {
             const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, { headers: { 'User-Agent': 'Mozilla/5.0' } });
             if (res.ok) {
-              const data = await res.json();
-              const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
-              if (price) await Stock.updateMany({ symbol }, { currentPrice: price });
+              const contentType = res.headers.get('content-type');
+              if (contentType && contentType.includes('application/json')) {
+                const data = await res.json();
+                const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+                if (price) await Stock.updateMany({ symbol }, { currentPrice: price });
+              } else {
+                console.warn(`[Cron] Yahoo Finance returned non-JSON for ${symbol}: ${contentType}`);
+              }
             }
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (err) { console.error(`Error updating price for ${symbol}:`, err.message); }
@@ -29,7 +34,20 @@ const startCronJobs = () => {
       const activeSips = await SIP.find({ status: 'active', schemeCode: { $exists: true, $ne: null } });
       for (const sip of activeSips) {
         try {
+          if (!sip.schemeCode || sip.schemeCode === 'undefined' || sip.schemeCode === 'null') continue;
+          
           const res = await fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`);
+          if (!res.ok) {
+            console.warn(`[Cron] API request failed for ${sip.fundName} (Code: ${sip.schemeCode}): Status ${res.status}`);
+            continue;
+          }
+          
+          const contentType = res.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            console.warn(`[Cron] Non-JSON response for ${sip.fundName}: ${contentType}`);
+            continue;
+          }
+
           const data = await res.json();
           if (data.data && data.data.length > 0) {
             const nav = parseFloat(data.data[0].nav);

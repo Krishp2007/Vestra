@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: 6,
+    minlength: 8,
     select: false  // Don't include password in queries by default
   },
   relation: {
@@ -42,7 +42,15 @@ const userSchema = new mongoose.Schema({
   googleId: {
     type: String,
     default: null
-  }
+  },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
+  resetPasswordToken: String,
+  resetPasswordExpire: Date
 }, {
   timestamps: true
 });

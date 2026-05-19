@@ -19,7 +19,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef(null);
   const [importing, setImporting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: user?.name || '', email: user?.email || '', avatar: user?.avatar || '👤' });
+  const [editForm, setEditForm] = useState({ name: user?.name || '', email: user?.email || '', username: user?.username || '', avatar: user?.avatar || '👤' });
   const [saving, setSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [changingPassword, setChangingPassword] = useState(false);
@@ -125,9 +125,12 @@ export default function SettingsPage() {
   return (
     <><Topbar title="Settings"/>
       <div className="page-content animate-fade" style={{ maxWidth: 1000, margin: '0 auto' }}>
-
-        {/* ── Profile ── */}
-        <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+          
+          {/* ── Left Column ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* ── Profile ── */}
+            <div className="card">
           <div className="card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}><User size={16}/></div>
@@ -150,9 +153,10 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}><label style={labelStyle}>Full Name</label><input className="form-input" style={inputStyle} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /></div>
+              <div style={{ marginBottom: 14 }}><label style={labelStyle}>Username</label><input className="form-input" style={inputStyle} value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value})} /></div>
               <div style={{ marginBottom: 20 }}><label style={labelStyle}>Email</label><input className="form-input" style={inputStyle} type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} /></div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button className="btn btn-secondary" onClick={() => { setIsEditing(false); setEditForm({ name: user?.name, email: user?.email, avatar: user?.avatar }); }}>Cancel</button>
+                <button className="btn btn-secondary" onClick={() => { setIsEditing(false); setEditForm({ name: user?.name, email: user?.email, username: user?.username, avatar: user?.avatar }); }}>Cancel</button>
                 <button className="btn btn-primary" disabled={saving} onClick={handleSaveProfile}>{saving ? 'Saving...' : 'Save'}</button>
               </div>
             </div>
@@ -161,6 +165,7 @@ export default function SettingsPage() {
               {renderAvatar(user?.avatar, 56)}
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.name}</div>
+                {user?.username && <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600, marginBottom: 2 }}>@{user.username}</div>}
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{user?.email}</div>
               </div>
             </div>
@@ -168,7 +173,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Change Password ── */}
-        <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card">
           <div className="card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}><Key size={16}/></div>
@@ -182,9 +187,13 @@ export default function SettingsPage() {
             <button className="btn btn-primary" disabled={changingPassword || !passwordForm.currentPassword || !passwordForm.newPassword} onClick={handleChangePassword}>{changingPassword ? 'Changing...' : 'Update Password'}</button>
           </div>
         </div>
+      </div>
 
+      {/* ── Right Column ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        
         {/* ── Data Management ── */}
-        <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card">
           <div className="card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}><Download size={16}/></div>
@@ -201,7 +210,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Danger Zone ── */}
-        <div className="card" style={{ marginBottom: 28, borderLeft: '3px solid var(--danger)' }}>
+        <div className="card" style={{ borderLeft: '3px solid var(--danger)' }}>
           <div className="card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}><AlertTriangle size={16}/></div>
@@ -227,7 +236,9 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
+      </div>
 
+        </div>
       </div>
     </>
   );
