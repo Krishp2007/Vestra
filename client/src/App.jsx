@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import useStore from './store/useStore';
 import AppLayout from './components/layout/AppLayout';
 import AuthPage from './pages/AuthPage';
@@ -22,6 +23,7 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{
         style: { background: '#1e293b', color: '#f1f5f9', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' },
@@ -45,5 +47,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }

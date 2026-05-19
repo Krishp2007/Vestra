@@ -6,6 +6,7 @@ const Stock = require('../models/Stock');
 const FamilyMember = require('../models/FamilyMember');
 const Alert = require('../models/Alert');
 const { v4: uuidv4 } = require('uuid');
+const { OAuth2Client } = require('google-auth-library');
 
 // Generate JWT
 const generateToken = (id) => {
@@ -99,6 +100,57 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error during login' });
+  }
+};
+
+// @desc    Google OAuth login/register
+// @route   POST /api/auth/google
+exports.googleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ message: 'Google credential required' });
+
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const { email, name, picture, sub: googleId } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // Auto-register new Google user
+      user = await User.create({
+        name,
+        email,
+        password: uuidv4(), // random password (won't be used)
+        avatar: picture || '👤',
+        relation: 'Self',
+        familyId: uuidv4(),
+        role: 'admin',
+        googleId,
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        relation: user.relation,
+        avatar: user.avatar || picture,
+        familyId: user.familyId,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(401).json({ message: 'Google authentication failed' });
   }
 };
 

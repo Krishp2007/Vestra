@@ -124,7 +124,7 @@ export default function SettingsPage() {
 
   return (
     <><Topbar title="Settings"/>
-      <div className="page-content animate-fade" style={{ maxWidth: 800, margin: '0 auto' }}>
+      <div className="page-content animate-fade" style={{ maxWidth: 1000, margin: '0 auto' }}>
 
         {/* ── Profile ── */}
         <div className="card" style={{ marginBottom: 20 }}>
@@ -162,7 +162,6 @@ export default function SettingsPage() {
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.name}</div>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{user?.email}</div>
-                <span className="badge badge-primary" style={{ fontSize: 10, marginTop: 4 }}>{user?.role}</span>
               </div>
             </div>
           )}

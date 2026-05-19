@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['admin', 'member'],
     default: 'admin'
+  },
+  googleId: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

@@ -3,7 +3,8 @@ import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { AVATARS, RELATIONS } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, X, Trash2, Edit } from 'lucide-react';
+import { Plus, X, Trash2, Edit, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function MembersPage() {
@@ -13,6 +14,7 @@ export default function MembersPage() {
   const [editId, setEditId] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
   const [form, setForm] = useState({ name: '', relation: 'Self', avatar: '👤' });
+  const navigate = useNavigate();
 
   useEffect(() => { load(); }, []);
   const load = async () => {
@@ -51,14 +53,15 @@ export default function MembersPage() {
         {members.length > 0 ? (
           <div className="members-grid">
             {members.map(m => (
-              <div key={m._id} className="member-card" style={{position:'relative'}}>
+              <div key={m._id} className="member-card" style={{position:'relative', cursor:'pointer'}} onClick={() => navigate(`/member/${m._id}`)}>
                 <div style={{position:'absolute',top:12,right:12,display:'flex',gap:4}}>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>{setForm({name:m.name,relation:m.relation,avatar:m.avatar});setEditId(m._id);setShowForm(true);}}><Edit size={14}/></button>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setDeleteModal({show:true, id:m._id})}><Trash2 size={14}/></button>
+                  <button className="btn btn-ghost btn-icon btn-sm" onClick={(e)=>{e.stopPropagation();setForm({name:m.name,relation:m.relation,avatar:m.avatar});setEditId(m._id);setShowForm(true);}}><Edit size={14}/></button>
+                  <button className="btn btn-ghost btn-icon btn-sm" onClick={(e)=>{e.stopPropagation();setDeleteModal({show:true, id:m._id});}}><Trash2 size={14}/></button>
                 </div>
                 <div className="member-avatar">{m.avatar}</div>
                 <div className="member-name">{m.name}</div>
                 <div className="member-relation">{m.relation}</div>
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>View Dashboard <ChevronRight size={12}/></div>
               </div>
             ))}
           </div>

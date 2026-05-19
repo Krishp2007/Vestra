@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
 
-export default function SearchSelect({ options, value, onChange, placeholder, renderOption, searchKey, required }) {
+export default function SearchSelect({ options, value, onChange, placeholder, renderOption, searchKey, required, style }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -40,6 +40,7 @@ export default function SearchSelect({ options, value, onChange, placeholder, re
           color: value ? 'var(--text-primary)' : 'var(--text-muted)',
           cursor: 'pointer', fontSize: 14, minHeight: 42,
           transition: 'border-color 0.2s',
+          ...style
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
