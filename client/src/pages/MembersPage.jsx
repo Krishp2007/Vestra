@@ -54,9 +54,9 @@ export default function MembersPage() {
           <div className="members-grid">
             {members.map(m => (
               <div key={m._id} className="member-card" style={{position:'relative', cursor:'pointer'}} onClick={() => navigate(`/member/${m._id}`)}>
-                <div style={{position:'absolute',top:12,right:12,display:'flex',gap:4}}>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={(e)=>{e.stopPropagation();setForm({name:m.name,relation:m.relation,avatar:m.avatar});setEditId(m._id);setShowForm(true);}}><Edit size={14}/></button>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={(e)=>{e.stopPropagation();setDeleteModal({show:true, id:m._id});}}><Trash2 size={14}/></button>
+                <div className="member-card-actions" onClick={e => e.stopPropagation()}>
+                  <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>{setForm({name:m.name,relation:m.relation,avatar:m.avatar});setEditId(m._id);setShowForm(true);}}><Edit size={14}/></button>
+                  <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setDeleteModal({show:true, id:m._id})}><Trash2 size={14}/></button>
                 </div>
                 <div className="member-avatar">{m.avatar}</div>
                 <div className="member-name">{m.name}</div>

@@ -4,7 +4,7 @@ import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatDate, getStatusColor, SIP_CATEGORIES } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, X } from 'lucide-react';
+import { Plus, Trash2, Edit, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import SearchSelect from '../components/SearchSelect';
@@ -18,7 +18,7 @@ export default function SIPPage() {
   const [viewingAsset, setViewingAsset] = useState(null);
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const [form, setForm] = useState({ fundName: '', schemeCode: '', memberId: '', amountPerMonth: '', sipDate: 1, startDate: '', category: 'Equity', status: 'active', totalInvested: '', totalUnits: '', notes: '' });
   const [suggestions, setSuggestions] = useState([]);
   const navigate = useNavigate();
@@ -124,47 +124,99 @@ export default function SIPPage() {
         </div>
 
         {sips.length > 0 ? (
-          <div className="card table-responsive" style={{ padding: 0 }}>
-            <table className="data-table">
-              <thead><tr>
-                <th>Fund Name</th><th>Member</th><th>Invested</th><th>Current Value</th><th>Returns</th><th>Status</th><th>Actions</th>
-              </tr></thead>
-              <tbody>
-                {sips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(sip => {
-                  const ret = sip.totalInvested > 0 ? ((sip.currentValue - sip.totalInvested) / sip.totalInvested * 100) : 0;
-                  return (
-                    <tr key={sip._id} onClick={() => setViewingAsset(sip)} style={{ cursor: 'pointer' }} className="hover-row">
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sip.fundName}<br /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sip.category}</span></td>
-                      <td>{sip.memberId?.avatar} {sip.memberId?.name || '-'}</td>
-                      <td>{formatCurrency(sip.totalInvested)}</td>
-                      <td style={{ fontWeight: 600 }}>{formatCurrency(sip.currentValue)}</td>
-                      <td style={{ color: ret >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
-                        {ret >= 0 ? '+' : ''}{ret.toFixed(1)}%
-                      </td>
-                      <td><span className={`badge ${getStatusColor(sip.status)}`}>{sip.status}</span></td>
-                      <td onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleEdit(sip)}><Edit size={14} /></button>
-                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setDeleteModal({show: true, id: sip._id})}><Trash2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            
+          <>
+            {/* Desktop Table Layout */}
+            <div className="card table-responsive desktop-table-container" style={{ padding: 0 }}>
+              <table className="data-table">
+                <thead><tr>
+                  <th>Fund Name</th><th>Member</th><th>Invested</th><th>Current Value</th><th>Returns</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody>
+                  {sips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(sip => {
+                    const ret = sip.totalInvested > 0 ? ((sip.currentValue - sip.totalInvested) / sip.totalInvested * 100) : 0;
+                    return (
+                      <tr key={sip._id} onClick={() => setViewingAsset(sip)} style={{ cursor: 'pointer' }} className="hover-row">
+                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sip.fundName}<br /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sip.category}</span></td>
+                        <td>{sip.memberId?.avatar} {sip.memberId?.name || '-'}</td>
+                        <td>{formatCurrency(sip.totalInvested)}</td>
+                        <td style={{ fontWeight: 600 }}>{formatCurrency(sip.currentValue)}</td>
+                        <td style={{ color: ret >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                          {ret >= 0 ? '+' : ''}{ret.toFixed(1)}%
+                        </td>
+                        <td><span className={`badge ${getStatusColor(sip.status)}`}>{sip.status}</span></td>
+                        <td onClick={e => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleEdit(sip)}><Edit size={14} /></button>
+                            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setDeleteModal({show: true, id: sip._id})}><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards Layout */}
+            <div className="mobile-asset-cards">
+              {sips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(sip => {
+                const ret = sip.totalInvested > 0 ? ((sip.currentValue - sip.totalInvested) / sip.totalInvested * 100) : 0;
+                return (
+                  <div key={sip._id} className="mobile-asset-card" onClick={() => setViewingAsset(sip)}>
+                    <div className="mobile-asset-card-header">
+                      <div>
+                        <h4 className="mobile-asset-card-title">{sip.fundName}</h4>
+                        <span className="mobile-asset-card-subtitle">{sip.category}</span>
+                      </div>
+                      <span className={`badge ${getStatusColor(sip.status)}`}>{sip.status}</span>
+                    </div>
+                    <div className="mobile-asset-card-body">
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Member</span>
+                        <span className="mobile-asset-card-value">{sip.memberId?.avatar} {sip.memberId?.name || '-'}</span>
+                      </div>
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Invested</span>
+                        <span className="mobile-asset-card-value">{formatCurrency(sip.totalInvested)}</span>
+                      </div>
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Current Value</span>
+                        <span className="mobile-asset-card-value" style={{ fontWeight: 700 }}>{formatCurrency(sip.currentValue)}</span>
+                      </div>
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Returns</span>
+                        <span className="mobile-asset-card-value" style={{ color: ret >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
+                          {ret >= 0 ? '+' : ''}{ret.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mobile-asset-card-footer">
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to view details</span>
+                      <div className="mobile-asset-card-actions" onClick={e => e.stopPropagation()}>
+                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleEdit(sip)}><Edit size={14} /></button>
+                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setDeleteModal({show: true, id: sip._id})}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Pagination Controls */}
             {sips.length > itemsPerPage && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)', borderBottomLeftRadius: 'var(--radius-lg)', borderBottomRightRadius: 'var(--radius-lg)' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sips.length)} of {sips.length}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</button>
-                  <button className="btn btn-secondary btn-sm" disabled={currentPage === Math.ceil(sips.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)}>Next</button>
-                </div>
+              <div className="card" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', marginTop: '16px', background: 'var(--bg-card)', gap: '16px' }}>
+                <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ padding: '6px' }}>
+                  <ChevronLeft size={16} />
+                </button>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center', flex: 1 }}>
+                  Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sips.length)} of {sips.length}
+                </span>
+                <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === Math.ceil(sips.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)} style={{ padding: '6px' }}>
+                  <ChevronRight size={16} />
+                </button>
               </div>
             )}
-          </div>
+          </>
         ) : (
           <div className="card"><div className="empty-state"><div className="empty-state-icon">📈</div><div className="empty-state-title">No SIPs yet</div><div className="empty-state-text">Start by adding your first Systematic Investment Plan</div><button className="btn btn-primary" onClick={() => setShowForm(true)}>Add SIP</button></div></div>
         )}

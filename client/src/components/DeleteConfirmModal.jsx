@@ -13,9 +13,9 @@ export default function DeleteConfirmModal({ title, message, onConfirm, onCancel
         <div style={{ color: 'var(--text-secondary)', marginBottom: 25, fontSize: 14 }}>
           {message || 'This action cannot be undone. This will permanently delete this record.'}
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" style={{ flex: 1, background: 'var(--danger)', color: '#fff', border: 'none' }} onClick={onConfirm}>Delete Permanently</button>
+        <div className="modal-buttons">
+          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-danger" onClick={onConfirm}>Delete Permanently</button>
         </div>
       </div>
     </div>

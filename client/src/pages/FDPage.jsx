@@ -4,7 +4,7 @@ import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatDate, getStatusColor, COMPOUNDING_OPTIONS, INDIAN_BANKS } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, X, Clock, XOctagon, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit, X, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import SearchSelect from '../components/SearchSelect';
@@ -17,7 +17,7 @@ export default function FDPage() {
   const [viewingAsset, setViewingAsset] = useState(null);
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const [form, setForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' });
   const [breakModal, setBreakModal] = useState({ show: false, fd: null, penaltyPercentage: 1, breakDate: new Date().toISOString().slice(0, 10), calculatedAmount: 0 });
   const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
@@ -157,7 +157,9 @@ export default function FDPage() {
         </div>
 
         {fds.length > 0 ? (
-          <div className="card table-responsive" style={{ padding: 0 }}>
+          <>
+            {/* Desktop Table Layout */}
+          <div className="card table-responsive desktop-table-container" style={{ padding: 0 }}>
             <table className="data-table"><thead><tr><th>Bank</th><th>Member</th><th>Principal</th><th>Rate</th><th>Maturity Amt</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>{fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
                 return (
@@ -177,19 +179,66 @@ export default function FDPage() {
                 )
               })}</tbody>
             </table>
-
-            {/* Pagination Controls */}
-            {fds.length > itemsPerPage && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)', borderBottomLeftRadius: 'var(--radius-lg)', borderBottomRightRadius: 'var(--radius-lg)' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, fds.length)} of {fds.length}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</button>
-                  <button className="btn btn-secondary btn-sm" disabled={currentPage === Math.ceil(fds.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)}>Next</button>
-                </div>
-              </div>
-            )}
           </div>
-        ) : (
+
+          {/* Mobile Cards Layout */}
+          <div className="mobile-asset-cards">
+            {fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
+              return (
+                <div key={fd._id} className="mobile-asset-card" onClick={() => setViewingAsset(fd)}>
+                  <div className="mobile-asset-card-header">
+                    <div>
+                      <h4 className="mobile-asset-card-title">{fd.bankName}</h4>
+                      <span className="mobile-asset-card-subtitle">{fd.compounding} compounding</span>
+                    </div>
+                    <div>{getStatusBadge(fd)}</div>
+                  </div>
+                  <div className="mobile-asset-card-body">
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Member</span>
+                      <span className="mobile-asset-card-value">{fd.memberId?.avatar} {fd.memberId?.name || '-'}</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Principal</span>
+                      <span className="mobile-asset-card-value">{formatCurrency(fd.principalAmount)}</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Interest Rate</span>
+                      <span className="mobile-asset-card-value" style={{ color: 'var(--success)', fontWeight: 700 }}>{fd.interestRate}%</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Maturity Amt</span>
+                      <span className="mobile-asset-card-value" style={{ fontWeight: 700 }}>{formatCurrency(fd.maturityAmount)}</span>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-card-footer">
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to view details</span>
+                    <div className="mobile-asset-card-actions" onClick={e => e.stopPropagation()}>
+                      {fd.status === 'active' && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openBreakModal(fd)} title="Break FD"><AlertTriangle size={14} color="var(--danger)" /></button>}
+                      <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>
+                      <button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => setDeleteModal({show:true, id:fd._id})}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          {fds.length > itemsPerPage && (
+            <div className="card" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', marginTop: '16px', background: 'var(--bg-card)', gap: '16px' }}>
+              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ padding: '6px' }}>
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center', flex: 1 }}>
+                Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, fds.length)} of {fds.length}
+              </span>
+              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === Math.ceil(fds.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)} style={{ padding: '6px' }}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </>) : (
           <div className="card"><div className="empty-state"><div className="empty-state-icon">🏦</div><div className="empty-state-title">No Fixed Deposits yet</div><div className="empty-state-text">{members.length === 0 ? 'Add family members first, then come back to add FDs' : 'Track your FDs with automatic maturity calculations'}</div><button className="btn btn-primary" onClick={() => { if (members.length === 0) { toast.error('Add family members first!'); navigate('/members'); return; } setShowForm(true); setEditId(null); setForm({ bankName: '', memberId: members[0]._id, principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' }); }}>{members.length === 0 ? 'Add Members' : 'Add FD'}</button></div></div>
         )}
 

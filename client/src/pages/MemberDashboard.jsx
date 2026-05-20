@@ -82,15 +82,15 @@ export default function MemberDashboard() {
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')} style={{marginBottom:16}}><ArrowLeft size={16}/> Back to Family</button>
 
         {/* Member Header */}
-        <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:24, padding: '20px 24px', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-          <div style={{fontSize:52, lineHeight: 1}}>{data.member?.avatar||'👤'}</div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{fontSize:22,fontWeight:700, margin: 0}}>{data.member?.name}</h2>
-            <p style={{color:'var(--text-muted)',fontSize:13, margin: '4px 0 0 0'}}>{data.member?.relation}</p>
+        <div className="member-header-card animate-fade">
+          <div className="member-header-avatar">{data.member?.avatar||'👤'}</div>
+          <div className="member-header-details">
+            <h2 className="member-header-name">{data.member?.name}</h2>
+            <p className="member-header-relation">{data.member?.relation}</p>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>{formatCurrency(s.totalCurrentValue || 0)}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: isPos ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+          <div className="member-header-stats">
+            <div className="member-header-value">{formatCurrency(s.totalCurrentValue || 0)}</div>
+            <div className="member-header-returns" style={{ color: isPos ? 'var(--success)' : 'var(--danger)' }}>
               {isPos ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>}
               {isPos ? '+' : ''}{formatPercent(s.totalReturns || 0)} returns
             </div>
@@ -216,19 +216,12 @@ export default function MemberDashboard() {
 
         {/* Holdings Tabs */}
         <div className="card" ref={holdingsRef} style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', gap: 4, padding: '4px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', marginBottom: 16 }}>
+          <div className="responsive-tabs-container">
             {tabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                style={{
-                  flex: 1, padding: '10px 12px', borderRadius: 'calc(var(--radius-lg) - 2px)',
-                  border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                  background: activeTab === tab.key ? 'var(--bg-card)' : 'transparent',
-                  color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
-                  boxShadow: activeTab === tab.key ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
+                className={`responsive-tab-btn ${activeTab === tab.key ? 'active' : ''}`}
               >
                 {tab.icon} {tab.label}
               </button>

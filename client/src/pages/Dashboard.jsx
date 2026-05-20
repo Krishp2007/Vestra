@@ -68,8 +68,6 @@ export default function Dashboard() {
     setViewingAssetType(holding.type);
   };
 
-  if (loading) return (<><Topbar title="Family Dashboard" /><div className="page-content"><div className="page-loading"><div className="spinner" /><p style={{color:'var(--text-muted)'}}>Loading dashboard...</p></div></div></>);
-
   const summary = data?.summary || {};
   const allocation = data?.allocation || {};
   const monthlyData = data?.monthlyData || [];
@@ -102,40 +100,60 @@ export default function Dashboard() {
       <div className="page-content animate-fade">
         {/* Stats */}
         <div className="stats-grid">
-          <div className={`stat-card ${isPositive ? 'success' : 'danger'}`}>
+          <div className={`stat-card ${!loading && isPositive ? 'success' : 'danger'}`}>
             <div className="stat-icon purple">💰</div>
             <div className="stat-label">Total Portfolio Value</div>
-            <div className="stat-value">{formatCurrency(summary.totalCurrentValue || 0)}</div>
-            <div className={`stat-change ${isPositive ? 'up' : 'down'}`}>
-              {isPositive ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>}
-              {formatPercent(summary.overallReturns || 0)}
+            <div className="stat-value">
+              {loading ? <span className="skeleton" style={{ width: '120px', height: '24px', margin: '4px 0' }} /> : formatCurrency(summary.totalCurrentValue || 0)}
+            </div>
+            <div className="stat-change" style={{ background: 'transparent', padding: 0 }}>
+              {loading ? (
+                <span className="skeleton" style={{ width: '70px', height: '14px', marginTop: '6px' }} />
+              ) : (
+                <div className={`stat-change ${isPositive ? 'up' : 'down'}`} style={{ marginTop: 0 }}>
+                  {isPositive ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>}
+                  {formatPercent(summary.overallReturns || 0)}
+                </div>
+              )}
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon green">📈</div>
             <div className="stat-label">Total Invested</div>
-            <div className="stat-value">{formatCurrency(summary.totalInvested || 0)}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{summary.totalSips || 0} SIPs · {summary.totalFds || 0} FDs · {summary.totalStocks || 0} Stocks</div>
+            <div className="stat-value">
+              {loading ? <span className="skeleton" style={{ width: '120px', height: '24px', margin: '4px 0' }} /> : formatCurrency(summary.totalInvested || 0)}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              {loading ? (
+                <span className="skeleton" style={{ width: '140px', height: '12px' }} />
+              ) : (
+                `${summary.totalSips || 0} SIPs · ${summary.totalFds || 0} FDs · ${summary.totalStocks || 0} Stocks`
+              )}
+            </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon blue">
-              {isPositive ? '📊' : '📉'}
+              {loading ? '📊' : (isPositive ? '📊' : '📉')}
             </div>
             <div className="stat-label">Total Returns</div>
-            <div className="stat-value" style={{color: isPositive ? 'var(--success)' : 'var(--danger)'}}>
-              {isPositive ? '+' : '-'}{formatCurrency(Math.abs(summary.absoluteReturns || 0))}
+            <div className="stat-value" style={{color: !loading && isPositive ? 'var(--success)' : 'var(--danger)'}}>
+              {loading ? <span className="skeleton" style={{ width: '120px', height: '24px', margin: '4px 0' }} /> : `${isPositive ? '+' : '-'}${formatCurrency(Math.abs(summary.absoluteReturns || 0))}`}
             </div>
           </div>
           <div className="stat-card" onClick={() => navigate('/members')} style={{ cursor: 'pointer' }}>
             <div className="stat-icon amber">👨‍👩‍👧‍👦</div>
             <div className="stat-label">Family Members</div>
-            <div className="stat-value">{summary.totalMembers || members.length || 0}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Click to manage members</div>
+            <div className="stat-value">
+              {loading ? <span className="skeleton" style={{ width: '60px', height: '24px', margin: '4px 0' }} /> : (summary.totalMembers || members.length || 0)}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              {loading ? <span className="skeleton" style={{ width: '120px', height: '12px' }} /> : 'Click to manage members'}
+            </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
+        <div className="quick-actions-grid">
           {[
             { icon: <TrendingUp size={18}/>, label: 'Add Stock', path: '/stocks', color: '#f59e0b' },
             { icon: <Landmark size={18}/>, label: 'Add FD', path: '/fds', color: '#10b981' },
@@ -168,7 +186,12 @@ export default function Dashboard() {
             <div className="card-header">
               <div><div className="card-title">Asset Allocation</div><div className="card-subtitle">Portfolio distribution by type</div></div>
             </div>
-            {pieData.length > 0 ? (
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '20px 24px' }}>
+                <span className="skeleton" style={{ width: '100%', height: '140px', borderRadius: '50%' }} />
+                <span className="skeleton" style={{ width: '60%', height: '16px' }} />
+              </div>
+            ) : pieData.length > 0 ? (
               <div className="pie-container">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -241,7 +264,11 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-            {monthlyData.slice(-chartRange).some(m => m.total > 0) ? (
+            {loading ? (
+              <div style={{ padding: '20px 24px' }}>
+                <span className="skeleton" style={{ width: '100%', height: '200px', borderRadius: 8 }} />
+              </div>
+            ) : monthlyData.slice(-chartRange).some(m => m.total > 0) ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={monthlyData.slice(-chartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
@@ -304,11 +331,11 @@ export default function Dashboard() {
 
         {/* Top Holdings - Clickable Details */}
         {topHoldings.length > 0 && (
-          <div className="card" style={{ marginBottom: 28 }}>
+          <div className="card hide-mobile" style={{ marginBottom: 28 }}>
             <div className="card-header">
               <div><div className="card-title">🏆 Top Holdings</div><div className="card-subtitle">Click any holding for detailed breakdown</div></div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            <div className="holdings-grid">
               {topHoldings.map(h => {
                 const isUp = h.returns >= 0;
                 return (
@@ -350,7 +377,17 @@ export default function Dashboard() {
             <div><div className="card-title">Family Members</div><div className="card-subtitle">Click a member to view their portfolio</div></div>
             <button className="btn btn-secondary btn-sm" onClick={() => navigate('/members')}>Manage</button>
           </div>
-          {members.length > 0 ? (
+          {loading ? (
+            <div className="members-grid">
+              {[1, 2].map(i => (
+                <div key={i} className="member-card" style={{ cursor: 'default' }}>
+                  <div className="skeleton" style={{ width: '44px', height: '44px', borderRadius: '50%', marginBottom: '12px' }} />
+                  <div className="skeleton" style={{ width: '70%', height: '14px', marginBottom: '8px' }} />
+                  <div className="skeleton" style={{ width: '50%', height: '11px' }} />
+                </div>
+              ))}
+            </div>
+          ) : members.length > 0 ? (
             <div className="members-grid">
               {memberBreakdown.length > 0 ? memberBreakdown.map(m => {
                 const memberReturn = m.totalInvested > 0 ? ((m.totalValue - m.totalInvested) / m.totalInvested * 100) : 0;

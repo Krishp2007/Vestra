@@ -3,7 +3,7 @@ import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatDate, EXCHANGES } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, X, TrendingUp, TrendingDown, Bell } from 'lucide-react';
+import { Plus, Trash2, X, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import SearchSelect from '../components/SearchSelect';
@@ -15,7 +15,7 @@ export default function StockPage() {
   const [showForm, setShowForm] = useState(false);
   const [viewingAsset, setViewingAsset] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const [form, setForm] = useState({ symbol:'', memberId:'', exchange:'NSE', type:'buy', date:'', quantity:'', pricePerUnit:'', brokerage:0 });
   const [priceLoading, setPriceLoading] = useState({});
   const [suggestions, setSuggestions] = useState([]);
@@ -176,7 +176,9 @@ export default function StockPage() {
         </div>
 
         {stocks.length > 0 ? (
-          <div className="card table-responsive" style={{padding:0}}>
+          <>
+            {/* Desktop Table Layout */}
+          <div className="card table-responsive desktop-table-container" style={{ padding: 0 }}>
             <table className="data-table"><thead><tr><th>Symbol</th><th>Member</th><th>Qty</th><th>Avg Buy</th><th>CMP</th><th>Day's Change</th><th>P&L</th><th>Actions</th></tr></thead>
               <tbody>{stocks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(stk => {
                 const holding = stk.holdingQuantity || 0;
@@ -211,19 +213,84 @@ export default function StockPage() {
                 );
               })}</tbody>
             </table>
-            
-            {/* Pagination Controls */}
-            {stocks.length > itemsPerPage && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)', borderBottomLeftRadius: 'var(--radius-lg)', borderBottomRightRadius: 'var(--radius-lg)' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, stocks.length)} of {stocks.length}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-secondary btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>Previous</button>
-                  <button className="btn btn-secondary btn-sm" disabled={currentPage === Math.ceil(stocks.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)}>Next</button>
-                </div>
-              </div>
-            )}
           </div>
-        ) : (
+
+          {/* Mobile Cards Layout */}
+          <div className="mobile-asset-cards">
+            {stocks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(stk => {
+              const holding = stk.holdingQuantity || 0;
+              const pl = stk.unrealizedPL || 0;
+              const plPct = stk.unrealizedPLPercent || 0;
+              const isUp = pl >= 0;
+              const dayChange = stk.dayChange || 0;
+              const dayPct = stk.dayChangePercent || 0;
+              const totalDayChange = dayChange * holding;
+              const isDayUp = totalDayChange >= 0;
+              return (
+                <div key={stk._id} className="mobile-asset-card" onClick={() => setViewingAsset(stk)}>
+                  <div className="mobile-asset-card-header">
+                    <div>
+                      <h4 className="mobile-asset-card-title">{stk.symbol}</h4>
+                      <span className="mobile-asset-card-subtitle">{stk.exchange}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                      <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setAlertModal({show:true, stock:stk, targetPrice:stk.targetPrice||'', stopLossPrice:stk.stopLossPrice||'', activeTab: 'target'})} title="Set Price Alert"><Bell size={14} color={(stk.targetPrice || stk.stopLossPrice) ? 'var(--accent)' : 'currentColor'}/></button>
+                      <button className="btn btn-ghost btn-icon btn-sm" onClick={()=>setDeleteModal({show:true, id:stk._id})}><Trash2 size={14}/></button>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-card-body">
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Member</span>
+                      <span className="mobile-asset-card-value">{stk.memberId?.avatar} {stk.memberId?.name||'-'}</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Quantity</span>
+                      <span className="mobile-asset-card-value">{holding}</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Avg Buy</span>
+                      <span className="mobile-asset-card-value">{formatCurrency(Math.round(stk.avgBuyPrice||0))}</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">CMP</span>
+                      <span className="mobile-asset-card-value" style={{ fontWeight: 700 }}>{stk.currentPrice ? formatCurrency(stk.currentPrice) : '--'}</span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Day Change</span>
+                      <span className="mobile-asset-card-value" style={{ color: isDayUp ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                        {isDayUp ? '+' : ''}{dayPct.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="mobile-asset-card-field">
+                      <span className="mobile-asset-card-label">Total P&L</span>
+                      <span className="mobile-asset-card-value" style={{ color: isUp ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
+                        {isUp ? '+' : ''}{plPct.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mobile-asset-card-footer">
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to view details</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          {stocks.length > itemsPerPage && (
+            <div className="card" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', marginTop: '16px', background: 'var(--bg-card)', gap: '16px' }}>
+              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ padding: '6px' }}>
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center', flex: 1 }}>
+                Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, stocks.length)} of {stocks.length}
+              </span>
+              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === Math.ceil(stocks.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)} style={{ padding: '6px' }}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </>) : (
           <div className="card"><div className="empty-state"><div className="empty-state-icon">📉</div><div className="empty-state-title">No stocks yet</div><div className="empty-state-text">{members.length === 0 ? 'Add family members first, then come back to add stocks' : 'Add buy/sell transactions to track your stock portfolio'}</div><button className="btn btn-primary" onClick={() => { if (members.length === 0) { toast.error('Add family members first!'); navigate('/members'); return; } setShowForm(true); setForm({ symbol:'', memberId:members[0]._id, exchange:'NSE', type:'buy', date:'', quantity:'', pricePerUnit:'', brokerage:0 }); }}>{members.length === 0 ? 'Add Members' : 'Add Stock'}</button></div></div>
         )}
 

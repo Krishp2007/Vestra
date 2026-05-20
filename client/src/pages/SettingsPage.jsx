@@ -125,7 +125,7 @@ export default function SettingsPage() {
   return (
     <><Topbar title="Settings"/>
       <div className="page-content animate-fade" style={{ maxWidth: 1000, margin: '0 auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
           
           {/* ── Left Column ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -222,24 +222,48 @@ export default function SettingsPage() {
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.5 }}>
               This will permanently delete your account, all family members, SIPs, FDs, stocks, and alerts. <strong>This cannot be undone.</strong>
             </p>
-            {!deleteConfirm ? (
-              <button className="btn" onClick={() => setDeleteConfirm(true)} style={{ background: 'var(--danger)', color: '#fff', border: 'none' }}><Trash2 size={14}/> Delete My Account</button>
-            ) : (
-              <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>⚠️ Enter your password to confirm:</div>
-                <input className="form-input" style={{ ...inputStyle, marginBottom: 12 }} type="password" placeholder="Your password" value={deletePassword} onChange={e => setDeletePassword(e.target.value)} />
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="btn btn-secondary" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); }}>Cancel</button>
-                  <button className="btn" disabled={deleting || !deletePassword} onClick={handleDeleteAccount} style={{ background: 'var(--danger)', color: '#fff', border: 'none' }}>{deleting ? 'Deleting...' : 'Delete Everything'}</button>
-                </div>
-              </div>
-            )}
+            <button className="btn" onClick={() => setDeleteConfirm(true)} style={{ background: 'var(--danger)', color: '#fff', border: 'none' }}><Trash2 size={14}/> Delete My Account</button>
           </div>
         </div>
       </div>
 
         </div>
       </div>
+
+      {deleteConfirm && (
+        <div className="modal-overlay" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 15 }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: 15, borderRadius: '50%' }}>
+                <AlertTriangle size={32} color="var(--danger)" />
+              </div>
+            </div>
+            <h2 className="modal-title" style={{ justifyContent: 'center', marginBottom: 10 }}>Delete Account?</h2>
+            <div style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: 14, lineHeight: 1.5 }}>
+              This will permanently delete your account, family members, SIPs, FDs, stocks, and alerts. <strong>This action cannot be undone.</strong>
+            </div>
+            
+            <div style={{ textAlign: 'left', marginBottom: 24 }}>
+              <label style={labelStyle}>Enter Password to Confirm</label>
+              <input 
+                className="form-input" 
+                style={inputStyle} 
+                type="password" 
+                placeholder="Confirm your password" 
+                value={deletePassword} 
+                onChange={e => setDeletePassword(e.target.value)} 
+              />
+            </div>
+
+            <div className="modal-buttons">
+              <button className="btn btn-secondary" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); }}>Cancel</button>
+              <button className="btn btn-danger" disabled={deleting || !deletePassword} onClick={handleDeleteAccount}>
+                {deleting ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
