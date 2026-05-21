@@ -2,7 +2,7 @@ import Topbar from '../components/layout/Topbar';
 import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
-import { Download, Upload, Trash2, FileText, Image as ImageIcon, Lock, Shield, AlertTriangle, User, Mail, Key, ChevronRight } from 'lucide-react';
+import { Download, Upload, Trash2, FileText, Image as ImageIcon, Lock, Shield, AlertTriangle, User, Mail, Key, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -26,6 +26,9 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -44,8 +47,11 @@ export default function SettingsPage() {
   };
 
   const handleChangePassword = async () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) { toast.error('Passwords do not match'); return; }
-    if (passwordForm.newPassword.length < 6) { toast.error('Min 6 characters'); return; }
+    const { newPassword, confirmPassword } = passwordForm;
+    if (newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (!/[0-9]/.test(newPassword)) { toast.error('Password must contain at least one number'); return; }
+    if (!/[!@#$%^&*(),.?":{}|<>_]/.test(newPassword)) { toast.error('Password must contain at least one special character'); return; }
+    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
     setChangingPassword(true);
     try { await api.put('/auth/change-password', { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword }); toast.success('Password changed'); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); }
     catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
@@ -119,6 +125,12 @@ export default function SettingsPage() {
     reader.readAsText(file);
   };
 
+  const hasMinLength = passwordForm.newPassword.length >= 8;
+  const hasNumber = /[0-9]/.test(passwordForm.newPassword);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_]/.test(passwordForm.newPassword);
+  const isMatched = passwordForm.confirmPassword && passwordForm.newPassword === passwordForm.confirmPassword;
+  const isPasswordValid = hasMinLength && hasNumber && hasSpecial && isMatched;
+
   const labelStyle = { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6, display: 'block' };
   const inputStyle = { fontSize: 14, padding: '12px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', width: '100%' };
 
@@ -181,10 +193,94 @@ export default function SettingsPage() {
             </div>
           </div>
           <div style={{ marginTop: 16 }}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Current Password</label><input className="form-input" style={inputStyle} type="password" placeholder="••••••••" value={passwordForm.currentPassword} onChange={e => setPasswordForm({...passwordForm, currentPassword: e.target.value})} /></div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>New Password</label><input className="form-input" style={inputStyle} type="password" placeholder="Min 6 characters" value={passwordForm.newPassword} onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} /></div>
-            <div style={{ marginBottom: 16 }}><label style={labelStyle}>Confirm New Password</label><input className="form-input" style={inputStyle} type="password" placeholder="Re-enter" value={passwordForm.confirmPassword} onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})} /></div>
-            <button className="btn btn-primary" disabled={changingPassword || !passwordForm.currentPassword || !passwordForm.newPassword} onClick={handleChangePassword}>{changingPassword ? 'Changing...' : 'Update Password'}</button>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Current Password</label>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  className="form-input" 
+                  style={{ ...inputStyle, paddingRight: 40 }} 
+                  type={showCurrent ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  value={passwordForm.currentPassword} 
+                  onChange={e => setPasswordForm({...passwordForm, currentPassword: e.target.value})} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowCurrent(!showCurrent)} 
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                >
+                  {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>New Password</label>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  className="form-input" 
+                  style={{ ...inputStyle, paddingRight: 40 }} 
+                  type={showNew ? "text" : "password"} 
+                  placeholder="Min 8 characters" 
+                  value={passwordForm.newPassword} 
+                  onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowNew(!showNew)} 
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                >
+                  {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Confirm New Password</label>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  className="form-input" 
+                  style={{ ...inputStyle, paddingRight: 40 }} 
+                  type={showConfirm ? "text" : "password"} 
+                  placeholder="Re-enter" 
+                  value={passwordForm.confirmPassword} 
+                  onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})} 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowConfirm(!showConfirm)} 
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                >
+                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            
+            {/* Real-time Validation Hints */}
+            {(passwordForm.newPassword) && (
+              <div style={{ marginBottom: 18, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasMinLength ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasMinLength ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
+                    {hasMinLength ? '✓' : '•'}
+                  </span>
+                  Must be at least 8 characters
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasNumber ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasNumber ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
+                    {hasNumber ? '✓' : '•'}
+                  </span>
+                  Must contain at least one number (0-9)
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasSpecial ? 'var(--success)' : 'var(--text-muted)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasSpecial ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
+                    {hasSpecial ? '✓' : '•'}
+                  </span>
+                  Must contain at least one special character (!@#$%^&*)
+                </div>
+              </div>
+            )}
+
+            <button className="btn btn-primary" disabled={changingPassword || !passwordForm.currentPassword || !isPasswordValid} onClick={handleChangePassword}>{changingPassword ? 'Changing...' : 'Update Password'}</button>
           </div>
         </div>
       </div>

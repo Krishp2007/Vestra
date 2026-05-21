@@ -2,66 +2,98 @@ import { useState, useEffect } from 'react';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { Zap, TrendingUp, Landmark, BarChart3, Plus, CheckCircle2 } from 'lucide-react';
+import SearchSelect from '../components/SearchSelect';
+import { SIP_CATEGORIES, COMPOUNDING_OPTIONS, INDIAN_BANKS, EXCHANGES } from '../utils/helpers';
+import { TrendingUp, Landmark, BarChart3, Plus, Info } from 'lucide-react';
 
 export default function QuickAddPage() {
   const [activeTab, setActiveTab] = useState('sip');
   const [members, setMembers] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [mfSuggestions, setMfSuggestions] = useState([]);
+  const [stockSuggestions, setStockSuggestions] = useState([]);
   
-  // Forms
-  const [sipForm, setSipForm] = useState({ memberId: '', fundName: '', category: 'Equity', installmentAmount: '', frequency: 'Monthly', startDate: '', durationMonths: '', currentNav: '', units: '', currentValue: '' });
-  const [fdForm, setFdForm] = useState({ memberId: '', bankName: '', fdNumber: '', principalAmount: '', interestRate: '', startDate: '', durationDays: '', maturityDate: '', maturityAmount: '', compoundingFrequency: 'Quarterly', status: 'Active' });
-  const [stockForm, setStockForm] = useState({ memberId: '', symbol: '', companyName: '', avgBuyPrice: '', holdingQuantity: '', currentPrice: '', sector: '' });
+  // SIP Form — identical to SIPPage
+  const [sipForm, setSipForm] = useState({ fundName: '', schemeCode: '', memberId: '', amountPerMonth: '', sipDate: 1, startDate: '', category: 'Equity', status: 'active', totalInvested: '', totalUnits: '', notes: '' });
+  // FD Form — identical to FDPage
+  const [fdForm, setFdForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' });
+  // Stock Form — identical to StockPage
+  const [stockForm, setStockForm] = useState({ symbol: '', memberId: '', exchange: 'NSE', type: 'buy', date: '', quantity: '', pricePerUnit: '', brokerage: 0 });
 
   useEffect(() => {
     api.get('/members').then(res => {
       setMembers(res.data.data);
       if (res.data.data.length > 0) {
-        setSipForm(s => ({ ...s, memberId: res.data.data[0]._id }));
-        setFdForm(s => ({ ...s, memberId: res.data.data[0]._id }));
-        setStockForm(s => ({ ...s, memberId: res.data.data[0]._id }));
+        const firstId = res.data.data[0]._id;
+        setSipForm(s => ({ ...s, memberId: firstId }));
+        setFdForm(s => ({ ...s, memberId: firstId }));
+        setStockForm(s => ({ ...s, memberId: firstId }));
       }
     });
   }, []);
 
-  // FD Auto-calculator (Duration Days -> Maturity Date -> Maturity Amount)
+  // FD Auto-calculator: Duration Days → Maturity Date
   useEffect(() => {
     if (fdForm.startDate && fdForm.durationDays) {
       const start = new Date(fdForm.startDate);
       const days = parseInt(fdForm.durationDays, 10);
       if (!isNaN(days) && days > 0) {
         const maturity = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
-        // Format to YYYY-MM-DD for standard storage
         const yyyy = maturity.getFullYear();
         const mm = String(maturity.getMonth() + 1).padStart(2, '0');
         const dd = String(maturity.getDate()).padStart(2, '0');
         const formattedDate = `${yyyy}-${mm}-${dd}`;
-        
         if (formattedDate !== fdForm.maturityDate) {
-           setFdForm(prev => ({ ...prev, maturityDate: formattedDate }));
-        }
-
-        if (fdForm.principalAmount && fdForm.interestRate) {
-            const p = parseFloat(fdForm.principalAmount);
-            const r = parseFloat(fdForm.interestRate) / 100;
-            const years = days / 365.25;
-            let n = 4; // Quarterly
-            if (fdForm.compoundingFrequency === 'Monthly') n = 12;
-            if (fdForm.compoundingFrequency === 'Annually') n = 1;
-            if (fdForm.compoundingFrequency === 'At Maturity') n = 1/years;
-            
-            const maturityAmt = p * Math.pow((1 + r/n), n * years);
-            setFdForm(prev => ({ ...prev, maturityAmount: Math.round(maturityAmt).toString() }));
+          setFdForm(prev => ({ ...prev, maturityDate: formattedDate }));
         }
       }
     }
-  }, [fdForm.startDate, fdForm.durationDays, fdForm.principalAmount, fdForm.interestRate, fdForm.compoundingFrequency]);
+  }, [fdForm.startDate, fdForm.durationDays]);
+
+  // ── SIP: MFAPI fund search (same as SIPPage) ──
+  const handleFundSearch = async (query) => {
+    setSipForm({...sipForm, fundName: query});
+    if (query.length < 3) { setMfSuggestions([]); return; }
+    try {
+      const res = await fetch(`https://api.mfapi.in/mf/search?q=${query}`);
+      let data = await res.json();
+      data.sort((a, b) => {
+        const aD = a.schemeName.toLowerCase().includes('direct') ? 0 : 1;
+        const bD = b.schemeName.toLowerCase().includes('direct') ? 0 : 1;
+        if (aD !== bD) return aD - bD;
+        const aG = a.schemeName.toLowerCase().includes('growth') ? 0 : 1;
+        const bG = b.schemeName.toLowerCase().includes('growth') ? 0 : 1;
+        return aG - bG;
+      });
+      setMfSuggestions(data.slice(0, 10));
+    } catch { setMfSuggestions([]); }
+  };
+
+  const handleFundSelect = (e) => {
+    const val = e.target.value;
+    const selected = mfSuggestions.find(s => s.schemeName === val);
+    if (selected) {
+      setSipForm({...sipForm, fundName: selected.schemeName, schemeCode: selected.schemeCode});
+    } else {
+      setSipForm({...sipForm, fundName: val});
+    }
+  };
+
+  // ── Stock: Symbol search via our backend API (same as StockPage) ──
+  const handleSymbolSearch = async (query) => {
+    setStockForm({...stockForm, symbol: query.toUpperCase()});
+    if (query.length < 2) { setStockSuggestions([]); return; }
+    try {
+      const res = await api.get(`/stocks/search/${query}`);
+      if (res.data.success && res.data.quotes) {
+        setStockSuggestions(res.data.quotes);
+      }
+    } catch { setStockSuggestions([]); }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // FD Validation 
     if (activeTab === 'fd' && parseFloat(fdForm.interestRate) > 20) {
       toast.error('Invalid Interest Rate: Cannot exceed 20%');
       return;
@@ -70,20 +102,24 @@ export default function QuickAddPage() {
     setSaving(true);
     try {
       if (activeTab === 'sip') {
-        const payload = { ...sipForm, totalInvested: (parseFloat(sipForm.installmentAmount) * parseFloat(sipForm.durationMonths)) };
-        await api.post('/sips', payload);
+        const submitForm = { ...sipForm, memberId: sipForm.memberId || (members.length > 0 ? members[0]._id : '') };
+        await api.post('/sips', submitForm);
         toast.success('SIP Added!');
-        setSipForm(prev => ({ ...prev, fundName: '', currentNav: '', units: '', currentValue: '' })); 
+        setSipForm(prev => ({ ...prev, fundName: '', schemeCode: '', amountPerMonth: '', totalInvested: '', totalUnits: '', notes: '' })); 
       } else if (activeTab === 'fd') {
-        // Build final payload mapping durationDays to maturityDate if API needs it
-        const payload = { ...fdForm };
-        await api.post('/fds', payload);
+        const submitForm = { ...fdForm, memberId: fdForm.memberId || (members.length > 0 ? members[0]._id : '') };
+        await api.post('/fds', submitForm);
         toast.success('Fixed Deposit Added!');
-        setFdForm(prev => ({ ...prev, fdNumber: '', principalAmount: '', durationDays: '', maturityDate: '', maturityAmount: '' }));
+        setFdForm(prev => ({ ...prev, bankName: '', principalAmount: '', durationDays: '', maturityDate: '', nominee: '' }));
       } else if (activeTab === 'stock') {
-        await api.post('/stocks', stockForm);
-        toast.success('Stock Added!');
-        setStockForm(prev => ({ ...prev, symbol: '', companyName: '', avgBuyPrice: '', holdingQuantity: '', currentPrice: '' }));
+        const sym = stockForm.symbol.toUpperCase();
+        const selectedMemberId = stockForm.memberId || (members.length > 0 ? members[0]._id : '');
+        await api.post('/stocks', {
+          symbol: sym, memberId: selectedMemberId, exchange: stockForm.exchange,
+          transactions: [{ type: stockForm.type, date: stockForm.date, quantity: Number(stockForm.quantity), pricePerUnit: Number(stockForm.pricePerUnit), brokerage: Number(stockForm.brokerage || 0) }]
+        });
+        toast.success('Stock Transaction Added!');
+        setStockForm(prev => ({ ...prev, symbol: '', date: '', quantity: '', pricePerUnit: '', brokerage: 0 }));
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add entry');
@@ -91,107 +127,184 @@ export default function QuickAddPage() {
     setSaving(false);
   };
 
+  const tabs = [
+    { id: 'sip', label: 'Mutual Fund / SIP', icon: <TrendingUp size={18} />, color: '#6366f1' },
+    { id: 'fd', label: 'Fixed Deposit', icon: <Landmark size={18} />, color: '#f59e0b' },
+    { id: 'stock', label: 'Stock', icon: <BarChart3 size={18} />, color: '#10b981' },
+  ];
+
   return (
     <><Topbar title="Quick Add" />
       <div className="page-content animate-fade">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, var(--accent), #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-            <Zap size={20} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Smart Entry Hub</h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Quickly add your investments using the smart wizard.</p>
-          </div>
+
+        {/* Tab Selector */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                flex: 1,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                padding: '18px 12px',
+                background: activeTab === tab.id ? 'var(--bg-card)' : 'transparent',
+                border: activeTab === tab.id ? '1.5px solid var(--accent)' : '1.5px solid var(--border-color)',
+                borderRadius: 'var(--radius-lg)',
+                cursor: 'pointer',
+                transition: 'var(--transition)',
+                boxShadow: activeTab === tab.id ? 'var(--shadow-glow)' : 'none',
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: activeTab === tab.id ? `${tab.color}20` : 'var(--bg-secondary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: activeTab === tab.id ? tab.color : 'var(--text-muted)',
+                transition: 'var(--transition)',
+              }}>
+                {tab.icon}
+              </div>
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
+                transition: 'var(--transition)',
+              }}>
+                {tab.label}
+              </span>
+            </button>
+          ))}
         </div>
 
-        <div className="card animate-fade" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <button className={`tab-btn ${activeTab === 'sip' ? 'active' : ''}`} onClick={() => setActiveTab('sip')} style={{ flex: 1, minWidth: 120, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: activeTab === 'sip' ? 'var(--bg-secondary)' : 'transparent', borderBottom: activeTab === 'sip' ? '2px solid var(--accent)' : '2px solid transparent', color: activeTab === 'sip' ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: 600, borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', transition: '0.2s' }}>
-              <TrendingUp size={16} /> SIP
-            </button>
-            <button className={`tab-btn ${activeTab === 'fd' ? 'active' : ''}`} onClick={() => setActiveTab('fd')} style={{ flex: 1, minWidth: 120, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: activeTab === 'fd' ? 'var(--bg-secondary)' : 'transparent', borderBottom: activeTab === 'fd' ? '2px solid var(--accent)' : '2px solid transparent', color: activeTab === 'fd' ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: 600, borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', transition: '0.2s' }}>
-              <Landmark size={16} /> FD
-            </button>
-            <button className={`tab-btn ${activeTab === 'stock' ? 'active' : ''}`} onClick={() => setActiveTab('stock')} style={{ flex: 1, minWidth: 120, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: activeTab === 'stock' ? 'var(--bg-secondary)' : 'transparent', borderBottom: activeTab === 'stock' ? '2px solid var(--accent)' : '2px solid transparent', color: activeTab === 'stock' ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: 600, borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer', transition: '0.2s' }}>
-              <BarChart3 size={16} /> Stock
-            </button>
-          </div>
+        {/* Form Card */}
+        <div className="card animate-fade" style={{ padding: '28px 24px' }}>
+          <form onSubmit={handleSubmit}>
 
-          <div style={{ padding: 24 }}>
-            <form onSubmit={handleSubmit}>
-              
-              {/* MEMBER SELECT */}
-              <div className="form-group" style={{ marginBottom: 24 }}>
-                <label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Assign to Family Member</label>
-                <select className="form-select" value={activeTab === 'sip' ? sipForm.memberId : activeTab === 'fd' ? fdForm.memberId : stockForm.memberId} onChange={(e) => {
-                  const val = e.target.value;
-                  if (activeTab === 'sip') setSipForm({...sipForm, memberId: val});
-                  if (activeTab === 'fd') setFdForm({...fdForm, memberId: val});
-                  if (activeTab === 'stock') setStockForm({...stockForm, memberId: val});
-                }} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }}>
-                  {members.map(m => <option key={m._id} value={m._id}>{m.name} ({m.relation})</option>)}
-                </select>
+            {/* ═══════════════ SIP FORM (exact copy of SIPPage modal) ═══════════════ */}
+            {activeTab === 'sip' && (
+              <div className="animate-fade">
+                <div className="form-group">
+                  <label className="form-label">Fund Name *</label>
+                  <input className="form-input" list="mf-suggestions-qa" value={sipForm.fundName} onChange={handleFundSelect} onInput={e => handleFundSearch(e.target.value)} required placeholder="Search for Indian Mutual Funds (e.g. Parag Parikh Flexi)" autoComplete="off" />
+                  <datalist id="mf-suggestions-qa">
+                    {mfSuggestions.map((s) => <option key={s.schemeCode} value={s.schemeName}>{s.schemeName}</option>)}
+                  </datalist>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Family Member *</label><SearchSelect options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} value={sipForm.memberId} onChange={val => setSipForm({...sipForm, memberId: val})} placeholder="Select member..." searchKey="searchLabel" required /></div>
+                  <div className="form-group"><label className="form-label">Category</label><SearchSelect options={SIP_CATEGORIES} value={sipForm.category} onChange={val => setSipForm({...sipForm, category: val})} placeholder="Category" /></div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Monthly Amount (₹) *</label><input className="form-input" type="number" value={sipForm.amountPerMonth} onChange={e => setSipForm({ ...sipForm, amountPerMonth: e.target.value })} required min="100" placeholder="5000" /></div>
+                  <div className="form-group"><label className="form-label">SIP Date (day)</label><input className="form-input" type="number" value={sipForm.sipDate} onChange={e => setSipForm({ ...sipForm, sipDate: e.target.value })} min="1" max="28" /></div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Total Invested Value (₹) *</label><input className="form-input" type="number" value={sipForm.totalInvested} onChange={e => setSipForm({ ...sipForm, totalInvested: e.target.value })} required placeholder="50000" /></div>
+                  <div className="form-group"><label className="form-label">Total Units</label><input className="form-input" type="number" step="0.001" value={sipForm.totalUnits} onChange={e => setSipForm({ ...sipForm, totalUnits: e.target.value })} placeholder="150.5" /></div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Start Date *</label><input className="form-input" type="date" value={sipForm.startDate} onChange={e => setSipForm({ ...sipForm, startDate: e.target.value })} required /></div>
+                  <div className="form-group"><label className="form-label">Status</label><SearchSelect options={[{value:'active',label:'Active'},{value:'paused',label:'Paused'},{value:'completed',label:'Completed'}]} value={sipForm.status} onChange={val => setSipForm({...sipForm, status: val})} placeholder="Status" /></div>
+                </div>
+                <div className="form-group"><label className="form-label">Notes</label><input className="form-input" value={sipForm.notes} onChange={e => setSipForm({ ...sipForm, notes: e.target.value })} placeholder="Optional notes" /></div>
               </div>
+            )}
 
-              {/* SIP FORM */}
-              {activeTab === 'sip' && (
-                <div className="form-row animate-fade">
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Fund Name</label><input type="text" className="form-input" placeholder="e.g. Parag Parikh Flexi Cap" value={sipForm.fundName} onChange={e=>setSipForm({...sipForm, fundName: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Category</label><select className="form-select" value={sipForm.category} onChange={e=>setSipForm({...sipForm, category: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }}><option>Equity</option><option>Debt</option><option>Hybrid</option><option>Index</option></select></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Installment Amount (₹)</label><input type="number" className="form-input" value={sipForm.installmentAmount} onChange={e=>setSipForm({...sipForm, installmentAmount: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Frequency</label><select className="form-select" value={sipForm.frequency} onChange={e=>setSipForm({...sipForm, frequency: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }}><option>Monthly</option><option>Weekly</option><option>Quarterly</option></select></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Start Date</label><input type="date" className="form-input" value={sipForm.startDate} onChange={e=>setSipForm({...sipForm, startDate: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Duration (Months)</label><input type="number" className="form-input" value={sipForm.durationMonths} onChange={e=>setSipForm({...sipForm, durationMonths: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Current NAV (Optional)</label><input type="number" step="0.01" className="form-input" value={sipForm.currentNav} onChange={e=>setSipForm({...sipForm, currentNav: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Units (Optional)</label><input type="number" step="0.001" className="form-input" value={sipForm.units} onChange={e=>setSipForm({...sipForm, units: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  
-                  {sipForm.installmentAmount && sipForm.durationMonths && (
-                    <div style={{ gridColumn: '1 / -1', padding: 12, background: 'rgba(99, 102, 241, 0.1)', borderRadius: 8, fontSize: 13, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckCircle2 size={16} /> <strong>Auto-Calculated Total Invested:</strong> ₹{(parseFloat(sipForm.installmentAmount) * parseFloat(sipForm.durationMonths)).toLocaleString('en-IN')}
-                    </div>
-                  )}
+            {/* ═══════════════ FD FORM (exact copy of FDPage modal) ═══════════════ */}
+            {activeTab === 'fd' && (
+              <div className="animate-fade">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Bank Name *</label>
+                    <SearchSelect 
+                      options={INDIAN_BANKS} 
+                      value={fdForm.bankName} 
+                      onChange={val => setFdForm({...fdForm, bankName: val})} 
+                      placeholder="Search bank..." 
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Family Member *</label>
+                    <SearchSelect 
+                      options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} 
+                      value={fdForm.memberId} 
+                      onChange={val => setFdForm({...fdForm, memberId: val})} 
+                      placeholder="Select member..." 
+                      searchKey="searchLabel"
+                      required 
+                    />
+                  </div>
                 </div>
-              )}
-
-              {/* FD FORM */}
-              {activeTab === 'fd' && (
-                <div className="form-row animate-fade">
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Bank Name</label><input type="text" className="form-input" placeholder="e.g. HDFC Bank" value={fdForm.bankName} onChange={e=>setFdForm({...fdForm, bankName: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>FD Number</label><input type="text" className="form-input" placeholder="XXXX-XXXX" value={fdForm.fdNumber} onChange={e=>setFdForm({...fdForm, fdNumber: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Principal Amount (₹)</label><input type="number" className="form-input" value={fdForm.principalAmount} onChange={e=>setFdForm({...fdForm, principalAmount: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Interest Rate (%)</label><input type="number" step="0.1" className="form-input" value={fdForm.interestRate} onChange={e=>setFdForm({...fdForm, interestRate: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Start Date</label><input type="date" className="form-input" value={fdForm.startDate} onChange={e=>setFdForm({...fdForm, startDate: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Duration (Days)</label><input type="number" className="form-input" placeholder="e.g. 444" value={fdForm.durationDays} onChange={e=>setFdForm({...fdForm, durationDays: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Compounding</label><select className="form-select" value={fdForm.compoundingFrequency} onChange={e=>setFdForm({...fdForm, compoundingFrequency: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }}><option>Quarterly</option><option>Monthly</option><option>Annually</option><option>At Maturity</option></select></div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Principal (₹) *</label><input className="form-input" type="number" value={fdForm.principalAmount} onChange={e => setFdForm({ ...fdForm, principalAmount: e.target.value })} required min="1000" /></div>
+                  <div className="form-group"><label className="form-label">Interest Rate (%) *</label><input className="form-input" type="number" step="0.01" value={fdForm.interestRate} onChange={e => setFdForm({ ...fdForm, interestRate: e.target.value })} required /></div>
                 </div>
-              )}
-
-              {/* STOCK FORM */}
-              {activeTab === 'stock' && (
-                <div className="form-row animate-fade">
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Stock Symbol</label><input type="text" className="form-input" placeholder="e.g. RELIANCE.NS" value={stockForm.symbol} onChange={e=>setStockForm({...stockForm, symbol: e.target.value.toUpperCase()})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Company Name</label><input type="text" className="form-input" placeholder="e.g. Reliance Industries" value={stockForm.companyName} onChange={e=>setStockForm({...stockForm, companyName: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Sector</label><input type="text" className="form-input" placeholder="e.g. Energy" value={stockForm.sector} onChange={e=>setStockForm({...stockForm, sector: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Holding Quantity</label><input type="number" className="form-input" value={stockForm.holdingQuantity} onChange={e=>setStockForm({...stockForm, holdingQuantity: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Average Buy Price (₹)</label><input type="number" step="0.01" className="form-input" value={stockForm.avgBuyPrice} onChange={e=>setStockForm({...stockForm, avgBuyPrice: e.target.value})} required style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  <div className="form-group"><label className="form-label" style={{ fontSize: 11, textTransform: 'uppercase' }}>Current Price (Optional)</label><input type="number" step="0.01" className="form-input" value={stockForm.currentPrice} onChange={e=>setStockForm({...stockForm, currentPrice: e.target.value})} style={{ background: 'var(--bg-secondary)', border: '1px solid transparent' }} /></div>
-                  
-                  {stockForm.holdingQuantity && stockForm.avgBuyPrice && (
-                    <div style={{ gridColumn: '1 / -1', padding: 12, background: 'rgba(99, 102, 241, 0.1)', borderRadius: 8, fontSize: 13, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <CheckCircle2 size={16} /> <strong>Total Investment Cost:</strong> ₹{(parseFloat(stockForm.holdingQuantity) * parseFloat(stockForm.avgBuyPrice)).toLocaleString('en-IN')}
-                    </div>
-                  )}
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Start Date *</label><input className="form-input" type="date" value={fdForm.startDate} onChange={e => setFdForm({ ...fdForm, startDate: e.target.value })} required /></div>
+                  <div className="form-group"><label className="form-label">Duration (Days) *</label><input className="form-input" type="number" placeholder="e.g. 444" value={fdForm.durationDays} onChange={e => setFdForm({ ...fdForm, durationDays: e.target.value })} required /></div>
                 </div>
-              )}
-
-              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-color)', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                <button type="submit" className="btn btn-primary" disabled={saving} style={{ padding: '12px 24px', fontSize: 14 }}>
-                  {saving ? 'Saving...' : <><Plus size={18}/> Save Data</>}
-                </button>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Compounding</label><SearchSelect options={COMPOUNDING_OPTIONS} value={fdForm.compounding} onChange={val => setFdForm({...fdForm, compounding: val})} placeholder="Compounding" /></div>
+                  <div className="form-group"><label className="form-label">Nominee</label><input className="form-input" value={fdForm.nominee} onChange={e => setFdForm({ ...fdForm, nominee: e.target.value })} /></div>
+                </div>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={fdForm.isAutoRenew} onChange={e => setFdForm({ ...fdForm, isAutoRenew: e.target.checked })} />
+                  <label className="form-label" style={{ margin: 0 }}>Auto-renew on maturity</label>
+                </div>
               </div>
+            )}
 
-            </form>
-          </div>
+            {/* ═══════════════ STOCK FORM (exact copy of StockPage modal) ═══════════════ */}
+            {activeTab === 'stock' && (
+              <div className="animate-fade">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Stock Symbol *</label>
+                    <input className="form-input" list="stock-suggestions-qa" value={stockForm.symbol} onChange={e => handleSymbolSearch(e.target.value)} required placeholder="Search symbol or name..." autoComplete="off" />
+                    <datalist id="stock-suggestions-qa">
+                      {stockSuggestions.map((s, i) => <option key={i} value={s.symbol.replace('.NS', '').replace('.BO', '')}>{s.shortname} ({s.exchDisp})</option>)}
+                    </datalist>
+                  </div>
+                  <div className="form-group"><label className="form-label">Exchange</label><SearchSelect options={EXCHANGES} value={stockForm.exchange} onChange={val => setStockForm({...stockForm, exchange: val})} placeholder="Exchange" /></div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Member *</label><SearchSelect options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} value={stockForm.memberId} onChange={val => setStockForm({...stockForm, memberId: val})} placeholder="Select member..." searchKey="searchLabel" required /></div>
+                  <div className="form-group"><label className="form-label">Type</label><SearchSelect options={[{value:'buy',label:'Buy'},{value:'sell',label:'Sell'}]} value={stockForm.type} onChange={val => setStockForm({...stockForm, type: val})} placeholder="Type" /></div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Date *</label><input className="form-input" type="date" value={stockForm.date} onChange={e => setStockForm({...stockForm, date: e.target.value})} required /></div>
+                  <div className="form-group"><label className="form-label">Quantity *</label><input className="form-input" type="number" value={stockForm.quantity} onChange={e => setStockForm({...stockForm, quantity: e.target.value})} required min="1" /></div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group"><label className="form-label">Price per Unit (₹) *</label><input className="form-input" type="number" step="0.01" value={stockForm.pricePerUnit} onChange={e => setStockForm({...stockForm, pricePerUnit: e.target.value})} required /></div>
+                  <div className="form-group"><label className="form-label">Brokerage (₹)</label><input className="form-input" type="number" value={stockForm.brokerage} onChange={e => setStockForm({...stockForm, brokerage: e.target.value})} /></div>
+                </div>
+              </div>
+            )}
+
+            {/* Tip */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '12px 14px', background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.15)', marginBottom: 20, marginTop: 4 }}>
+              <Info size={14} color="var(--info)" style={{ marginTop: 2, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {activeTab === 'sip' && 'Current value will be auto-fetched via the MFAPI if a scheme code is matched.'}
+                {activeTab === 'fd' && 'Maturity date and amount are auto-calculated based on principal, rate, and duration.'}
+                {activeTab === 'stock' && 'Current market price will be auto-fetched from Yahoo Finance every 30 seconds.'}
+              </span>
+            </div>
+
+            {/* Submit */}
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20, marginTop: 0 }}>
+              <button type="button" className="btn btn-secondary" onClick={() => {
+                if (activeTab === 'sip') setSipForm(prev => ({ ...prev, fundName: '', schemeCode: '', amountPerMonth: '', totalInvested: '', totalUnits: '', notes: '' }));
+                if (activeTab === 'fd') setFdForm(prev => ({ ...prev, bankName: '', principalAmount: '', durationDays: '', maturityDate: '', nominee: '' }));
+                if (activeTab === 'stock') setStockForm(prev => ({ ...prev, symbol: '', date: '', quantity: '', pricePerUnit: '', brokerage: 0 }));
+              }}>Clear</button>
+              <button type="submit" className="btn btn-primary" disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {saving ? 'Saving...' : <><Plus size={16} /> Add {activeTab === 'sip' ? 'SIP' : activeTab === 'fd' ? 'Fixed Deposit' : 'Transaction'}</>}
+              </button>
+            </div>
+
+          </form>
         </div>
       </div>
     </>

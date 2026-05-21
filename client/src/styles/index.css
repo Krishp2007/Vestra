@@ -37,6 +37,12 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Hide default browser native password reveal eye button */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
 html { font-size: 16px; scroll-behavior: smooth; }
 
 body {
@@ -502,12 +508,13 @@ input, select, textarea, button { font-family: inherit; }
   .modal-footer .btn { width: 100%; margin: 0 !important; }
   .modal-buttons { flex-direction: column-reverse; width: 100%; gap: 10px; }
   .modal-buttons .btn { width: 100%; margin: 0 !important; }
-  .members-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
-  .member-card { padding: 16px !important; }
-  .member-avatar { font-size: 32px !important; margin-bottom: 8px !important; }
-  .member-name { font-size: 14px !important; }
-  .member-card-actions { top: 6px !important; right: 6px !important; }
-  .member-card-actions .btn-icon { width: 28px !important; height: 28px !important; }
+  .members-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .manage-members-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
+  .manage-members-grid .member-card { padding: 16px !important; }
+  .manage-members-grid .member-avatar { font-size: 32px !important; margin-bottom: 8px !important; }
+  .manage-members-grid .member-name { font-size: 14px !important; }
+  .manage-members-grid .member-card-actions { top: 6px !important; right: 6px !important; }
+  .manage-members-grid .member-card-actions .btn-icon { width: 28px !important; height: 28px !important; }
 }
 .menu-toggle { display: none; }
 @media (max-width: 768px) { 
