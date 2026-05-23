@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import useStore from '../../store/useStore';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, TrendingUp, Landmark, BarChart3, Upload, Bell, Lightbulb, Users, Settings, LogOut, X, Zap, User, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, Landmark, BarChart3, Upload, Bell, Lightbulb, Users, Settings, LogOut, X, Zap, User, ChevronUp, Gem } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const navItems = [
@@ -82,10 +82,12 @@ export default function Sidebar() {
             style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} 
             onClick={() => { navigate('/'); setSidebarOpen(false); }}
           >
-            <div className="sidebar-logo">AV</div>
+            <div className="sidebar-logo">
+              <Gem size={20} color="white" fill="white" style={{ opacity: 0.95 }} />
+            </div>
             <div>
-              <div className="sidebar-title">Assets View</div>
-              <div className="sidebar-subtitle">Family Finance</div>
+              <div className="sidebar-title">Vestra</div>
+              <div className="sidebar-subtitle">Family Office</div>
             </div>
           </div>
           <button className="menu-toggle btn-icon btn-ghost" onClick={() => setSidebarOpen(false)} style={{marginLeft:'auto'}}>

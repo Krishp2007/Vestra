@@ -155,9 +155,9 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="quick-actions-grid">
           {[
-            { icon: <TrendingUp size={18}/>, label: 'Add Stock', path: '/stocks', color: '#f59e0b' },
-            { icon: <Landmark size={18}/>, label: 'Add FD', path: '/fds', color: '#10b981' },
-            { icon: <BarChart3 size={18}/>, label: 'Add SIP', path: '/sips', color: '#6366f1' },
+            { icon: <TrendingUp size={18}/>, label: 'Add Stock', path: '/add?tab=stock', color: '#10b981' },
+            { icon: <Landmark size={18}/>, label: 'Add FD', path: '/add?tab=fd', color: '#f59e0b' },
+            { icon: <BarChart3 size={18}/>, label: 'Add SIP', path: '/add?tab=sip', color: '#6366f1' },
             { icon: <Eye size={18}/>, label: 'Insights', path: '/insights', color: '#8b5cf6' },
           ].map(action => (
             <button

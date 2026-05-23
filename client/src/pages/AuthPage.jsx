@@ -4,13 +4,15 @@ import { GoogleLogin } from '@react-oauth/google';
 import useStore from '../store/useStore';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import { Mail, Lock, User, Users, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Users, ArrowRight, Eye, EyeOff, Gem } from 'lucide-react';
 import SearchSelect from '../components/SearchSelect';
 
 export default function AuthPage() {
   const [view, setView] = useState('login'); // login, signup, forgot, reset
   const [form, setForm] = useState({ name: '', email: '', password: '', relation: 'Self', resetCode: '', newPassword: '' });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const { setAuth } = useStore();
   const navigate = useNavigate();
 
@@ -108,11 +110,11 @@ export default function AuthPage() {
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{ 
             width: '60px', height: '60px', borderRadius: '18px', 
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)', 
+            background: 'linear-gradient(135deg, #a855f7, #6366f1)', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            fontSize: '30px', margin: '0 auto 20px',
-            boxShadow: '0 10px 25px rgba(99,102,241,0.4)'
-          }}>📊</div>
+            margin: '0 auto 20px',
+            boxShadow: '0 10px 25px rgba(168,85,247,0.4)'
+          }}><Gem size={30} color="white" fill="white" /></div>
           <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>
             {view === 'login' ? 'Welcome back' : view === 'signup' ? 'Create account' : view === 'forgot' ? 'Forgot Password' : 'Reset Password'}
           </h2>
@@ -124,16 +126,33 @@ export default function AuthPage() {
         {(view === 'login' || view === 'signup') && (
           <>
             {/* Google OAuth */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => toast.error('Google sign-in failed')}
-                theme="outline"
-                shape="rectangular"
-                size="large"
-                width="100%"
-                text={view === 'login' ? 'signin_with' : 'signup_with'}
-              />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px', position: 'relative', minHeight: '44px', width: '100%' }}>
+              {/* Premium Skeleton Placeholder */}
+              <div className="google-skeleton" style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(30, 41, 59, 0.4)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: '10px', color: '#94a3b8', fontSize: '13px', fontWeight: 500,
+                pointerEvents: 'none',
+                animation: 'pulse 1.5s infinite ease-in-out',
+                zIndex: 0
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/></svg>
+                Securely connecting to Google...
+              </div>
+              <div style={{ width: '100%', position: 'relative', zIndex: 1 }}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => toast.error('Google sign-in failed')}
+                  theme="outline"
+                  shape="rectangular"
+                  size="large"
+                  width="100%"
+                  text={view === 'login' ? 'signin_with' : 'signup_with'}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
@@ -201,15 +220,34 @@ export default function AuthPage() {
                 <Lock size={18} style={iconStyle} />
                 <input 
                   className="auth-input" 
-                  style={inputStyle} 
+                  style={{ ...inputStyle, paddingRight: '44px' }} 
                   name="password" 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   value={form.password} 
                   onChange={handleChange} 
                   placeholder="Password" 
                   required 
                   minLength={6} 
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             )}
 
@@ -218,15 +256,34 @@ export default function AuthPage() {
                 <Lock size={18} style={iconStyle} />
                 <input 
                   className="auth-input" 
-                  style={inputStyle} 
+                  style={{ ...inputStyle, paddingRight: '44px' }} 
                   name="newPassword" 
-                  type="password" 
+                  type={showNewPassword ? 'text' : 'password'} 
                   value={form.newPassword} 
                   onChange={handleChange} 
                   placeholder="New Password" 
                   required 
                   minLength={6} 
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             )}
 
@@ -325,6 +382,11 @@ export default function AuthPage() {
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 0.9; }
+          100% { opacity: 0.6; }
         }
       `}</style>
     </div>

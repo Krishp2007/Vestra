@@ -1,7 +1,7 @@
 import { X, Activity } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { useState, useEffect, useMemo } from 'react';
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from 'recharts';
 import api from '../../utils/api';
 
 export default function AssetDetailsModal({ asset, type, onClose }) {
@@ -38,6 +38,23 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
     }
     return asset.currentPrice || asset.avgBuyPrice;
   }, [asset, type, chartData]);
+
+  const closestFdPoint = useMemo(() => {
+    if (type !== 'fd' || !chartData || chartData.length === 0) return null;
+    const today = new Date();
+    let minDiff = Infinity;
+    let closest = null;
+    chartData.forEach(pt => {
+      if (pt.rawDate) {
+        const diff = Math.abs(pt.rawDate.getTime() - today.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = pt;
+        }
+      }
+    });
+    return closest;
+  }, [chartData, type]);
 
   const stockMetrics = useMemo(() => {
     if (!asset || type !== 'stock' || !asset.transactions?.length) return { text: '-', cagr: 0 };
@@ -131,7 +148,8 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
 
             curve.push({
               date: d.toLocaleDateString('en-IN', {month:'short', year:'2-digit'}),
-              value: Math.round(val)
+              value: Math.round(val),
+              rawDate: d
             });
           }
           setChartData(curve);
@@ -169,7 +187,6 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Value</div><div style={{ fontSize: 15, fontWeight: 600, color: 'var(--success)' }}>{formatCurrency(asset.currentValue)}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Units</div><div style={{ fontSize: 15, fontWeight: 500 }}>{asset.totalUnits || '-'}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Start Date</div><div style={{ fontSize: 15, fontWeight: 500 }}>{formatDate(asset.startDate)}</div></div>
-                 {asset.schemeCode && <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Scheme Code</div><div style={{ fontSize: 15, fontWeight: 500 }}>{asset.schemeCode}</div></div>}
               </div>
               
               {asset.notes && (
@@ -241,6 +258,17 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
                       <YAxis domain={['auto', 'auto']} tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} width={40} tickFormatter={v => v>=1000 ? `${v/1000}k` : v} />
                       <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} labelStyle={{ color: '#64748b', fontSize: 12 }} formatter={v => formatCurrency(v)} />
                       <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                      {closestFdPoint && (
+                        <ReferenceDot
+                          x={closestFdPoint.date}
+                          y={closestFdPoint.value}
+                          r={5}
+                          fill="var(--accent)"
+                          stroke="#fff"
+                          strokeWidth={2}
+                          isFront={true}
+                        />
+                      )}
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (

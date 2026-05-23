@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -7,11 +8,20 @@ import { SIP_CATEGORIES, COMPOUNDING_OPTIONS, INDIAN_BANKS, EXCHANGES } from '..
 import { TrendingUp, Landmark, BarChart3, Plus, Info } from 'lucide-react';
 
 export default function QuickAddPage() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('sip');
   const [members, setMembers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [mfSuggestions, setMfSuggestions] = useState([]);
   const [stockSuggestions, setStockSuggestions] = useState([]);
+  
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const tab = query.get('tab');
+    if (tab && ['sip', 'fd', 'stock'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
   
   // SIP Form — identical to SIPPage
   const [sipForm, setSipForm] = useState({ fundName: '', schemeCode: '', memberId: '', amountPerMonth: '', sipDate: 1, startDate: '', category: 'Equity', status: 'active', totalInvested: '', totalUnits: '', notes: '' });

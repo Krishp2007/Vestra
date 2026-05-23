@@ -8,7 +8,7 @@ export default function AppLayout() {
       <main className="main-content">
         <Outlet />
         <footer style={{ textAlign: 'center', padding: '20px', fontSize: 13, color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
-          &copy; {new Date().getFullYear()} Assets View. All rights reserved.
+          &copy; {new Date().getFullYear()} Vestra. All rights reserved.
         </footer>
       </main>
     </div>
