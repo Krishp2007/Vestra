@@ -64,9 +64,9 @@ export default function MemberDashboard() {
   const a = data.allocation || {};
   const isPos = (s.absoluteReturns || 0) >= 0;
   const pieData = [
-    { name: 'Mutual Funds', value: a.sip||0 },
-    { name: 'Fixed Deposits', value: a.fd||0 },
-    { name: 'Stocks', value: a.stocks||0 },
+    { name: 'Mutual Funds', value: a.sip||0, invested: data.sip?.invested || 0 },
+    { name: 'Fixed Deposits', value: a.fd||0, invested: data.fd?.invested || data.fd?.principal || 0 },
+    { name: 'Stocks', value: a.stocks||0, invested: data.stocks?.invested || 0 },
   ].filter(d => d.value > 0);
 
   const tabs = [
@@ -140,12 +140,28 @@ export default function MemberDashboard() {
                     <Tooltip 
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
+                          const item = payload[0].payload;
                           return (
-                            <div style={{ background: 'rgba(23, 23, 37, 0.95)', border: '1px solid var(--border-color)', padding: '10px 14px', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)' }}>
+                            <div style={{ 
+                              background: 'rgba(23, 23, 37, 0.95)', 
+                              border: '1px solid var(--border-color)', 
+                              padding: '12px 16px', 
+                              borderRadius: '12px', 
+                              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                              backdropFilter: 'blur(8px)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px'
+                            }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: payload[0].payload.fill }} />
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>{payload[0].name}:</span>
-                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>{payload[0].value}%</span>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.fill }} />
+                                <span style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 600 }}>{item.name}</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                Share: <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{item.value}%</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                Invested: <span style={{ fontWeight: 700, color: 'var(--success)' }}>{formatCurrency(item.invested || 0)}</span>
                               </div>
                             </div>
                           );
@@ -198,16 +214,37 @@ export default function MemberDashboard() {
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         return (
-                          <div style={{ background: 'rgba(23, 23, 37, 0.95)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(8px)' }}>
-                            <p style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</p>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>{formatCurrency(payload[0]?.value || 0)}</div>
+                          <div style={{ 
+                            background: 'rgba(23, 23, 37, 0.95)', 
+                            border: '1px solid var(--border-color)', 
+                            padding: '12px', 
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(8px)'
+                          }}>
+                            <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</p>
+                            {payload.map((entry, index) => (
+                              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: index === payload.length - 1 ? 0 : '4px' }}>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: entry.fill }} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', flex: 1 }}>{entry.name}:</span>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(entry.value)}</span>
+                              </div>
+                            ))}
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Total:</span>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
+                                {formatCurrency(payload.reduce((acc, curr) => acc + curr.value, 0))}
+                              </span>
+                            </div>
                           </div>
                         );
                       }
                       return null;
-                    }}
+                    }} 
                   />
-                  <Bar dataKey="total" fill="#6366f1" radius={[4,4,0,0]} barSize={20}/>
+                  <Bar dataKey="sip" name="SIP" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={20} />
+                  <Bar dataKey="fd" name="FD" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={20} />
+                  <Bar dataKey="stocks" name="Stocks" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <div className="empty-state" style={{padding:40}}><p style={{color:'var(--text-muted)'}}>No data yet</p></div>}

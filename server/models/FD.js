@@ -15,7 +15,6 @@ const fdSchema = new mongoose.Schema({
     required: [true, 'Bank name is required'],
     trim: true
   },
-  accountNumber: String,
   principalAmount: {
     type: Number,
     required: [true, 'Principal amount is required'],

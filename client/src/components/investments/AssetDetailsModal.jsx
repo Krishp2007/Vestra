@@ -109,10 +109,19 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
         .then(res => res.json())
         .then(data => {
           if (data && data.data) {
-            const history = data.data.slice(0, 100).reverse().map(d => ({
-              date: d.date.slice(0, 5),
-              nav: parseFloat(d.nav)
-            }));
+            // Slice 180 days for a beautiful 6-month historical view
+            const history = data.data.slice(0, 180).reverse().map(d => {
+              const parts = d.date.split('-');
+              let formattedDate = d.date;
+              if (parts.length === 3) {
+                const dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+                formattedDate = dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+              }
+              return {
+                date: formattedDate,
+                nav: parseFloat(d.nav)
+              };
+            });
             setChartData(history);
           }
         })
@@ -197,17 +206,17 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
               )}
 
               <div style={{ marginTop: 10, background: '#fff', border: '1px solid var(--border-color)', borderRadius: 8, padding: 15 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 15, display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14}/> Historical NAV (Last 100 days)</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 15, display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14}/> 6M NAV History</div>
                 {loadingChart ? (
                   <div style={{ height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="spinner" style={{width: 20, height: 20}} /></div>
                 ) : chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={150}>
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="date" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} minTickGap={20} />
+                      <XAxis dataKey="date" tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} minTickGap={30} />
                       <YAxis domain={['auto', 'auto']} tick={{fontSize: 10, fill: '#94a3b8'}} axisLine={false} tickLine={false} width={40} />
-                      <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} labelStyle={{ color: '#64748b', fontSize: 12 }} />
-                      <Line type="monotone" dataKey="nav" stroke="#4f46e5" strokeWidth={2} dot={false} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} labelStyle={{ color: '#64748b', fontSize: 12 }} formatter={v => `₹${v}`} />
+                      <Line type="monotone" dataKey="nav" stroke="#f59e0b" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (

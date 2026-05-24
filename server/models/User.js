@@ -34,19 +34,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  role: {
-    type: String,
-    enum: ['admin', 'member'],
-    default: 'admin'
-  },
   googleId: {
     type: String,
     default: null
   },
   username: {
     type: String,
+    required: [true, 'Username is required'],
     unique: true,
-    sparse: true,
     trim: true
   },
   resetPasswordToken: String,

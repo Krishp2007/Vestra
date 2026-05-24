@@ -9,14 +9,20 @@ import SearchSelect from '../components/SearchSelect';
 
 export default function AuthPage() {
   const [view, setView] = useState('login'); // login, signup, forgot, reset
-  const [form, setForm] = useState({ name: '', email: '', password: '', relation: 'Self', resetCode: '', newPassword: '' });
+  const [form, setForm] = useState({ name: '', email: '', username: '', password: '', relation: 'Self', resetCode: '', newPassword: '' });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const { setAuth } = useStore();
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    let { name, value } = e.target;
+    if (name === 'resetCode') {
+      value = value.replace(/[^0-9]/g, '').slice(0, 6);
+    }
+    setForm({ ...form, [name]: value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,7 +30,9 @@ export default function AuthPage() {
     try {
       if (view === 'login' || view === 'signup') {
         const endpoint = view === 'login' ? '/auth/login' : '/auth/register';
-        const payload = view === 'login' ? { email: form.email, password: form.password } : { name: form.name, email: form.email, password: form.password, relation: form.relation };
+        const payload = view === 'login' 
+          ? { email: form.email, password: form.password } 
+          : { name: form.name, email: form.email, username: form.username, password: form.password, relation: form.relation };
         const { data } = await api.post(endpoint, payload);
         setAuth(data.user, data.token);
         toast.success(view === 'login' ? 'Welcome back!' : 'Account created!');
@@ -168,18 +176,32 @@ export default function AuthPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {view === 'signup' && (
-              <div style={{ position: 'relative' }}>
-                <User size={18} style={iconStyle} />
-                <input 
-                  className="auth-input" 
-                  style={inputStyle} 
-                  name="name" 
-                  value={form.name} 
-                  onChange={handleChange} 
-                  placeholder="Full Name" 
-                  required 
-                />
-              </div>
+              <>
+                <div style={{ position: 'relative' }}>
+                  <User size={18} style={iconStyle} />
+                  <input 
+                    className="auth-input" 
+                    style={inputStyle} 
+                    name="name" 
+                    value={form.name} 
+                    onChange={handleChange} 
+                    placeholder="Full Name" 
+                    required 
+                  />
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <User size={18} style={iconStyle} />
+                  <input 
+                    className="auth-input" 
+                    style={inputStyle} 
+                    name="username" 
+                    value={form.username} 
+                    onChange={handleChange} 
+                    placeholder="Username" 
+                    required 
+                  />
+                </div>
+              </>
             )}
 
             {(view === 'login' || view === 'signup' || view === 'forgot' || view === 'reset') && (
@@ -189,10 +211,10 @@ export default function AuthPage() {
                   className="auth-input" 
                   style={inputStyle} 
                   name="email" 
-                  type="email" 
+                  type={view === 'login' ? 'text' : 'email'} 
                   value={form.email} 
                   onChange={handleChange} 
-                  placeholder="Email Address" 
+                  placeholder={view === 'login' ? 'Email or Username' : 'Email Address'} 
                   required 
                   readOnly={view === 'reset'}
                 />
@@ -207,6 +229,9 @@ export default function AuthPage() {
                   style={inputStyle} 
                   name="resetCode" 
                   type="text" 
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength="6"
                   value={form.resetCode} 
                   onChange={handleChange} 
                   placeholder="6-digit code" 

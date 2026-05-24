@@ -9,7 +9,8 @@ const sipPaymentSchema = new mongoose.Schema({
     type: String,
     enum: ['completed', 'missed', 'pending'],
     default: 'pending'
-  }
+  },
+  notes: String
 });
 
 const sipSchema = new mongoose.Schema({
@@ -28,7 +29,6 @@ const sipSchema = new mongoose.Schema({
     trim: true
   },
   schemeCode: Number,
-  folioNumber: String,
   amountPerMonth: {
     type: Number,
     required: [true, 'Monthly amount is required'],

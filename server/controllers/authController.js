@@ -8,7 +8,7 @@ const Alert = require('../models/Alert');
 const { v4: uuidv4 } = require('uuid');
 const { OAuth2Client } = require('google-auth-library');
 const crypto = require('crypto');
-const sendEmail = require('../utils/sendEmail');
+const { sendEmail, renderEmail } = require('../utils/sendEmail');
 const ejs = require('ejs');
 const path = require('path');
 
@@ -19,46 +19,72 @@ const generateToken = (id) => {
   });
 };
 
-// Validate strong password
 const isStrongPassword = (password) => {
-  // Min 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
-  return passwordRegex.test(password);
+  if (!password || password.length < 8) return false;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasDigit = /\d/.test(password);
+  // Matches any non-alphanumeric character (this naturally includes all special characters like ;, ., etc.)
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+  return hasUppercase && hasLowercase && hasDigit && hasSpecial;
 };
 
 // @desc    Register new user
 // @route   POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, relation } = req.body;
+    const { name, email, username, password, relation } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ message: 'Username is required' });
+    }
 
     // Validate password strength
     if (!isStrongPassword(password)) {
       return res.status(400).json({ message: 'Password must be at least 8 characters, contain at least one uppercase letter, one lowercase letter, one number, and one special character' });
     }
 
-    // Check if user exists
+    // Check if user exists by email
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
+    // Check if username is already taken
+    const existingUsername = await User.findOne({ username: username.trim() });
+    if (existingUsername) {
+      return res.status(400).json({ message: 'Username is already taken' });
+    }
+
     // Generate a unique family ID for this user
     const familyId = uuidv4();
-    
-    // Auto-generate username if not provided
-    const baseUsername = req.body.username || name.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 10000);
-    const username = baseUsername + '_' + crypto.randomBytes(2).toString('hex');
 
     const user = await User.create({
       name,
       email,
       password,
-      username,
+      username: username.trim(),
       relation: relation || 'Self',
-      familyId,
-      role: 'admin'
+      familyId
     });
+
+    // Verify user was successfully created and stored in the database first
+    const verifiedUser = await User.findById(user._id);
+    if (!verifiedUser) {
+      return res.status(500).json({ message: 'User registration failed in database validation' });
+    }
+
+    // Asynchronously send the beautiful welcome email in the background (does not block quick registration response)
+    renderEmail('welcome', { userName: verifiedUser.name }, 'Welcome to Vestra Vault! 💎')
+      .then(html => {
+        sendEmail({
+          email: verifiedUser.email,
+          subject: 'Welcome to Vestra Vault! 💎',
+          html
+        }).catch(err => console.error('Error sending welcome email:', err));
+      })
+      .catch(err => console.error('Error rendering welcome email:', err));
 
     const token = generateToken(user._id);
 
@@ -73,7 +99,7 @@ exports.register = async (req, res) => {
         relation: user.relation,
         avatar: user.avatar,
         familyId: user.familyId,
-        role: user.role
+        role: 'member'
       }
     });
   } catch (error) {
@@ -86,16 +112,22 @@ exports.register = async (req, res) => {
 // @route   POST /api/auth/login
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email: emailOrUsername, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ message: 'Please provide email/username and password' });
     }
 
-    // Find user and include password for comparison
-    const user = await User.findOne({ email }).select('+password');
+    // Find user by either email (case-insensitive) or username
+    const user = await User.findOne({
+      $or: [
+        { email: emailOrUsername.toLowerCase() },
+        { username: emailOrUsername }
+      ]
+    }).select('+password');
+
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid email/username or password' });
     }
 
     // Check password
@@ -116,7 +148,7 @@ exports.login = async (req, res) => {
         relation: user.relation,
         avatar: user.avatar,
         familyId: user.familyId,
-        role: user.role
+        role: 'member'
       }
     });
   } catch (error) {
@@ -142,8 +174,31 @@ exports.googleAuth = async (req, res) => {
     let user = await User.findOne({ email });
 
     if (!user) {
-      const baseUsername = name.split(' ')[0].toLowerCase() + Math.floor(Math.random() * 10000);
-      const username = baseUsername + '_' + crypto.randomBytes(2).toString('hex');
+      let username = name.replace(/\s+/g, '').toLowerCase(); // e.g. "kalpeshpatel"
+      let isUnique = false;
+      let attempts = 0;
+
+      // Check if this username already exists
+      let existing = await User.findOne({ username });
+      if (!existing) {
+        isUnique = true;
+      } else {
+        // Loop to find a unique username by adding a random number at the end
+        while (!isUnique && attempts < 15) {
+          const randNum = Math.floor(100 + Math.random() * 900); // 3 digit number
+          const candidate = `${username}${randNum}`;
+          const duplicate = await User.findOne({ username: candidate });
+          if (!duplicate) {
+            username = candidate;
+            isUnique = true;
+          }
+          attempts++;
+        }
+        // Absolute fallback just in case
+        if (!isUnique) {
+          username = `${username}${Date.now().toString().slice(-4)}`;
+        }
+      }
 
       // Auto-register new Google user
       user = await User.create({
@@ -154,7 +209,6 @@ exports.googleAuth = async (req, res) => {
         avatar: picture || '👤',
         relation: 'Self',
         familyId: uuidv4(),
-        role: 'admin',
         googleId,
       });
     }
@@ -172,7 +226,7 @@ exports.googleAuth = async (req, res) => {
         relation: user.relation,
         avatar: user.avatar || picture,
         familyId: user.familyId,
-        role: user.role,
+        role: 'member',
       },
     });
   } catch (error) {
@@ -196,7 +250,7 @@ exports.getMe = async (req, res) => {
         relation: user.relation,
         avatar: user.avatar,
         familyId: user.familyId,
-        role: user.role
+        role: 'member'
       }
     });
   } catch (error) {
@@ -234,7 +288,7 @@ exports.updateProfile = async (req, res) => {
         relation: updatedUser.relation,
         avatar: updatedUser.avatar,
         familyId: updatedUser.familyId,
-        role: updatedUser.role
+        role: 'member'
       }
     });
   } catch (error) {
@@ -324,16 +378,15 @@ exports.forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const templatePath = path.join(__dirname, '../templates/emails/passwordReset.ejs');
-    const html = await ejs.renderFile(templatePath, {
+    const html = await renderEmail('passwordReset', {
       userName: user.name,
       resetCode: resetCode
-    });
+    }, 'Password Reset Code - Vestra Vault');
 
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Password Reset Code - Assets View',
+        subject: 'Password Reset Code - Vestra Vault',
         html
       });
       res.status(200).json({ success: true, message: 'Email sent' });

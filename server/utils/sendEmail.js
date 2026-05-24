@@ -1,3 +1,6 @@
+const ejs = require('ejs');
+const path = require('path');
+
 const sendEmail = async (options) => {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
@@ -7,8 +10,8 @@ const sendEmail = async (options) => {
 
   const payload = {
     sender: { 
-      name: process.env.FROM_NAME || 'Assets View', 
-      email: process.env.FROM_EMAIL || 'noreply@assetsview.com' 
+      name: process.env.FROM_NAME || 'Vestra Vault', 
+      email: process.env.FROM_EMAIL || 'noreply@vestravault.com' 
     },
     to: [{ email: options.email }],
     subject: options.subject,
@@ -35,4 +38,18 @@ const sendEmail = async (options) => {
   console.log('Message sent via Brevo API:', data.messageId);
 };
 
-module.exports = sendEmail;
+const renderEmail = async (templateName, data, title = 'Vestra Vault') => {
+  const templatePath = path.join(__dirname, `../templates/emails/${templateName}.ejs`);
+  const body = await ejs.renderFile(templatePath, data);
+  
+  const layoutPath = path.join(__dirname, '../templates/emails/baseLayout.ejs');
+  return await ejs.renderFile(layoutPath, {
+    body,
+    title
+  });
+};
+
+module.exports = {
+  sendEmail,
+  renderEmail
+};

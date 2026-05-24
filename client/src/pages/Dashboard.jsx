@@ -75,9 +75,9 @@ export default function Dashboard() {
   const isPositive = (summary.absoluteReturns || 0) >= 0;
 
   const pieData = [
-    { name: 'Mutual Funds', value: allocation.sip || 0, route: '/sips' },
-    { name: 'Fixed Deposits', value: allocation.fd || 0, route: '/fds' },
-    { name: 'Stocks', value: allocation.stocks || 0, route: '/stocks' },
+    { name: 'Mutual Funds', value: allocation.sip || 0, route: '/sips', invested: summary.sipInvested || 0 },
+    { name: 'Fixed Deposits', value: allocation.fd || 0, route: '/fds', invested: summary.fdInvested || 0 },
+    { name: 'Stocks', value: allocation.stocks || 0, route: '/stocks', invested: summary.stockInvested || 0 },
   ].filter(d => d.value > 0);
 
   const getTypeIcon = (type) => {
@@ -204,19 +204,28 @@ export default function Dashboard() {
                     <Tooltip 
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
+                          const item = payload[0].payload;
                           return (
                             <div style={{ 
                               background: 'rgba(23, 23, 37, 0.95)', 
                               border: '1px solid var(--border-color)', 
-                              padding: '10px 14px', 
+                              padding: '12px 16px', 
                               borderRadius: '12px', 
                               boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-                              backdropFilter: 'blur(8px)'
+                              backdropFilter: 'blur(8px)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px'
                             }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: payload[0].payload.fill }} />
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>{payload[0].name}:</span>
-                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>{payload[0].value}%</span>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.fill }} />
+                                <span style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 600 }}>{item.name}</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                Share: <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{item.value}%</span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                Invested: <span style={{ fontWeight: 700, color: 'var(--success)' }}>{formatCurrency(item.invested || 0)}</span>
                               </div>
                             </div>
                           );

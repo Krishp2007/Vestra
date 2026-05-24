@@ -1,4 +1,5 @@
 const SIP = require('../models/SIP');
+const { recalculateSipLedger } = require('../cron/jobs');
 
 // @desc    Get all SIPs (optionally filtered by memberId)
 // @route   GET /api/sips
@@ -50,6 +51,22 @@ exports.createSIP = async (req, res) => {
     const sip = await SIP.create(sipData);
     const populated = await SIP.findById(sip._id).populate('memberId', 'name avatar relation');
 
+    // Asynchronously backfill historical NAV and units immediately
+    if (sip.schemeCode) {
+      fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`)
+        .then(res => res.json())
+        .then(async data => {
+          if (data && data.data && data.data.length > 0) {
+            const freshSip = await SIP.findById(sip._id);
+            if (freshSip) {
+              recalculateSipLedger(freshSip, data.data);
+              await freshSip.save();
+            }
+          }
+        })
+        .catch(err => console.error(`Error initialising new SIP NAV/ledger:`, err));
+    }
+
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
     console.error('Create SIP error:', error);
@@ -68,6 +85,23 @@ exports.updateSIP = async (req, res) => {
     ).populate('memberId', 'name avatar relation');
 
     if (!sip) return res.status(404).json({ message: 'SIP not found' });
+
+    // Asynchronously update units & calculations immediately
+    if (sip.schemeCode) {
+      fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`)
+        .then(res => res.json())
+        .then(async data => {
+          if (data && data.data && data.data.length > 0) {
+            const freshSip = await SIP.findById(sip._id);
+            if (freshSip) {
+              recalculateSipLedger(freshSip, data.data);
+              await freshSip.save();
+            }
+          }
+        })
+        .catch(err => console.error(`Error updating SIP NAV/ledger:`, err));
+    }
+
     res.json({ success: true, data: sip });
   } catch (error) {
     res.status(500).json({ message: 'Error updating SIP' });
@@ -104,6 +138,22 @@ exports.addPayment = async (req, res) => {
     sip.payments.push(req.body);
     await sip.save();
 
+    // Asynchronously update units & calculations immediately
+    if (sip.schemeCode) {
+      fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`)
+        .then(res => res.json())
+        .then(async data => {
+          if (data && data.data && data.data.length > 0) {
+            const freshSip = await SIP.findById(sip._id);
+            if (freshSip) {
+              recalculateSipLedger(freshSip, data.data);
+              await freshSip.save();
+            }
+          }
+        })
+        .catch(err => console.error(`Error updating SIP NAV/ledger:`, err));
+    }
+
     const populated = await SIP.findById(sip._id).populate('memberId', 'name avatar relation');
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
@@ -127,6 +177,22 @@ exports.updatePayment = async (req, res) => {
 
     Object.assign(payment, req.body);
     await sip.save();
+
+    // Asynchronously update units & calculations immediately
+    if (sip.schemeCode) {
+      fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`)
+        .then(res => res.json())
+        .then(async data => {
+          if (data && data.data && data.data.length > 0) {
+            const freshSip = await SIP.findById(sip._id);
+            if (freshSip) {
+              recalculateSipLedger(freshSip, data.data);
+              await freshSip.save();
+            }
+          }
+        })
+        .catch(err => console.error(`Error updating SIP NAV/ledger:`, err));
+    }
 
     res.json({ success: true, data: sip });
   } catch (error) {

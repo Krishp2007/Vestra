@@ -4,6 +4,141 @@ const FD = require('../models/FD');
 const Stock = require('../models/Stock');
 const Alert = require('../models/Alert');
 
+/**
+ * Automatically backfills and recalculates all historical payments, units, 
+ * total invested capital, and the current value for a given Mutual Fund SIP.
+ * 
+ * @param {Object} sip - Mongoose SIP Document
+ * @param {Array} navHistory - Array of objects returned from mfapi: [ { date: "DD-MM-YYYY", nav: "NAV" }, ... ]
+ */
+function recalculateSipLedger(sip, navHistory) {
+  if (!navHistory || navHistory.length === 0) return false;
+
+  // Build key-value map for fast NAV lookup (YYYY-MM-DD)
+  const lookup = {};
+  navHistory.forEach(item => {
+    const parts = item.date.split('-');
+    if (parts.length === 3) {
+      const key = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+      lookup[key] = parseFloat(item.nav);
+    }
+  });
+
+  const startDate = new Date(sip.startDate);
+  const now = new Date();
+  
+  // Calculate all scheduled SIP months since startDate
+  // We always start from the start month itself to capture the first installment (e.g. March 2026 starts in March)
+  let current = new Date(startDate.getFullYear(), startDate.getMonth(), sip.sipDate || 1);
+
+  // Generate expected investment months up to the current date or final inactive limit
+  const expectedDates = [];
+  let endLimit = now;
+  if (sip.status !== 'active') {
+    endLimit = sip.endDate ? new Date(sip.endDate) : new Date(sip.updatedAt || now);
+  }
+
+  while (current <= endLimit) {
+    expectedDates.push(new Date(current));
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  let modified = false;
+
+  // Ensure every expected date has a completed payment record
+  expectedDates.forEach(expectedDate => {
+    const startOfMonth = new Date(expectedDate.getFullYear(), expectedDate.getMonth(), 1);
+    const endOfMonth = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 0);
+
+    let existingPayment = sip.payments?.find(p => {
+      const d = new Date(p.date);
+      return d >= startOfMonth && d <= endOfMonth;
+    });
+
+    if (!existingPayment) {
+      // Find the closest NAV for this date (accounts for weekends/holidays up to 10 days back)
+      let closestNav = null;
+      let checkDate = new Date(expectedDate);
+
+      for (let offset = 0; offset < 10; offset++) {
+        const yyyy = checkDate.getFullYear();
+        const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(checkDate.getDate()).padStart(2, '0');
+        const key = `${yyyy}-${mm}-${dd}`;
+
+        if (lookup[key]) {
+          closestNav = lookup[key];
+          break;
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      // Fallback to the latest available NAV in series if no historical entry
+      if (!closestNav && navHistory.length > 0) {
+        closestNav = parseFloat(navHistory[0].nav);
+      }
+
+      if (closestNav) {
+        const units = sip.amountPerMonth / closestNav;
+        sip.payments.push({
+          date: expectedDate,
+          amount: sip.amountPerMonth,
+          nav: closestNav,
+          units: units,
+          status: 'completed',
+          notes: 'Auto-recalculated historical transaction'
+        });
+        modified = true;
+      }
+    } else {
+      // Backfill missing NAV or units for manually created/stub records
+      if (!existingPayment.nav || !existingPayment.units) {
+        let closestNav = null;
+        let checkDate = new Date(existingPayment.date);
+
+        for (let offset = 0; offset < 10; offset++) {
+          const yyyy = checkDate.getFullYear();
+          const mm = String(checkDate.getMonth() + 1).padStart(2, '0');
+          const dd = String(checkDate.getDate()).padStart(2, '0');
+          const key = `${yyyy}-${mm}-${dd}`;
+
+          if (lookup[key]) {
+            closestNav = lookup[key];
+            break;
+          }
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+
+        if (!closestNav && navHistory.length > 0) {
+          closestNav = parseFloat(navHistory[0].nav);
+        }
+
+        if (closestNav) {
+          existingPayment.nav = closestNav;
+          existingPayment.units = existingPayment.amount / closestNav;
+          existingPayment.status = 'completed';
+          modified = true;
+        }
+      }
+    }
+  });
+
+  // Calculate strict aggregates from completed payments
+  const completedPayments = sip.payments.filter(p => p.status === 'completed');
+  const calculatedTotalInvested = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+  const calculatedTotalUnits = completedPayments.reduce((sum, p) => sum + (p.units || 0), 0);
+
+  const latestNav = parseFloat(navHistory[0].nav);
+  const calculatedCurrentValue = calculatedTotalUnits * latestNav;
+
+  // Save the calculated metrics onto the document
+  sip.totalInvested = calculatedTotalInvested;
+  sip.totalUnits = Math.round(calculatedTotalUnits * 10000) / 10000;
+  sip.currentValue = Math.round(calculatedCurrentValue * 100) / 100;
+
+  return true;
+}
+
 const startCronJobs = () => {
   // 1. Update Stock Prices and SIP NAVs every 30 seconds
   cron.schedule('*/30 * * * * *', async () => {
@@ -30,7 +165,7 @@ const startCronJobs = () => {
         }
       }
 
-      // Update SIP NAVs
+      // Update SIP NAVs & Recalculate historical units/payments
       const activeSips = await SIP.find({ status: 'active', schemeCode: { $exists: true, $ne: null } });
       for (const sip of activeSips) {
         try {
@@ -50,10 +185,9 @@ const startCronJobs = () => {
 
           const data = await res.json();
           if (data.data && data.data.length > 0) {
-            const nav = parseFloat(data.data[0].nav);
-            if (nav && sip.totalUnits) {
-              await SIP.findByIdAndUpdate(sip._id, { currentValue: nav * sip.totalUnits });
-            }
+            // Recalculate ledger, backfill missing transactions, and update units/currentValue
+            recalculateSipLedger(sip, data.data);
+            await sip.save();
           }
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (err) { console.error(`Error updating NAV for ${sip.fundName}:`, err.message); }
@@ -203,4 +337,4 @@ const startCronJobs = () => {
   console.log('🕐 Full Automation Suite Started (Stocks 30s | SIP/FD Daily)');
 };
 
-module.exports = { startCronJobs };
+module.exports = { startCronJobs, recalculateSipLedger };
