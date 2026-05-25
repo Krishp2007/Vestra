@@ -181,7 +181,7 @@ export default function Sidebar() {
             title="Account menu"
             style={{ cursor: 'pointer' }}
           >
-            <div className="sidebar-user-avatar">{user?.avatar || '👤'}</div>
+            <div className="sidebar-user-avatar">{renderAvatar(user?.avatar, 36)}</div>
             <div>
               <div className="sidebar-user-name">{user?.name || 'User'}</div>
               <div className="sidebar-user-email">{user?.email || ''}</div>

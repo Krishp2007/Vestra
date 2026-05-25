@@ -29,6 +29,10 @@ export default function SettingsPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [deleteOtp, setDeleteOtp] = useState('');
+  const [requestingOtp, setRequestingOtp] = useState(false);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -58,11 +62,35 @@ export default function SettingsPage() {
     setChangingPassword(false);
   };
 
+  const handleRequestDeleteOtp = async () => {
+    if (!deletePassword) { toast.error('Enter password'); return; }
+    setRequestingOtp(true);
+    try {
+      await api.post('/auth/delete-account-request', { password: deletePassword });
+      toast.success('Verification OTP sent to your email! 📧');
+      setOtpSent(true);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Verification request failed');
+    }
+    setRequestingOtp(false);
+  };
+
   const handleDeleteAccount = async () => {
     if (!deletePassword) { toast.error('Enter password'); return; }
+    if (!deleteOtp) { toast.error('Enter 6-digit verification code'); return; }
     setDeleting(true);
-    try { await api.delete('/auth/delete-account', { data: { password: deletePassword } }); toast.success('Account deleted'); logout(); navigate('/login'); }
-    catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
+    try {
+      await api.delete('/auth/delete-account', { data: { password: deletePassword, otp: deleteOtp } });
+      toast.success('Account permanently deleted! 👋');
+      setDeleteConfirm(false);
+      setDeletePassword('');
+      setDeleteOtp('');
+      setOtpSent(false);
+      logout();
+      navigate('/login');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Deletion failed');
+    }
     setDeleting(false);
   };
 
@@ -152,14 +180,14 @@ export default function SettingsPage() {
           </div>
 
           {isEditing ? (
-            <div style={{ marginTop: 16 }}>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
                 {renderAvatar(editForm.avatar, 72)}
                 <div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => document.getElementById('av-up').click()}><ImageIcon size={14}/> Upload</button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => document.getElementById('av-up').click()}><ImageIcon size={14}/> Upload</button>
                     <input type="file" id="av-up" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
-                    <button className="btn btn-ghost btn-sm" onClick={() => setEditForm({...editForm, avatar: '👤'})}><Trash2 size={14}/></button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditForm({...editForm, avatar: '👤'})}><Trash2 size={14}/></button>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Max 1MB</div>
                 </div>
@@ -168,10 +196,10 @@ export default function SettingsPage() {
               <div style={{ marginBottom: 14 }}><label style={labelStyle}>Username</label><input className="form-input" style={inputStyle} value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value})} /></div>
               <div style={{ marginBottom: 20 }}><label style={labelStyle}>Email</label><input className="form-input" style={inputStyle} type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} /></div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button className="btn btn-secondary" onClick={() => { setIsEditing(false); setEditForm({ name: user?.name, email: user?.email, username: user?.username, avatar: user?.avatar }); }}>Cancel</button>
-                <button className="btn btn-primary" disabled={saving} onClick={handleSaveProfile}>{saving ? 'Saving...' : 'Save'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => { setIsEditing(false); setEditForm({ name: user?.name, email: user?.email, username: user?.username, avatar: user?.avatar }); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
               </div>
-            </div>
+            </form>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16, padding: 16, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
               {renderAvatar(user?.avatar, 56)}
@@ -192,96 +220,96 @@ export default function SettingsPage() {
               <div className="card-title">Change Password</div>
             </div>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Current Password</label>
-              <div style={{ position: 'relative' }}>
-                <input 
-                  className="form-input" 
-                  style={{ ...inputStyle, paddingRight: 40 }} 
-                  type={showCurrent ? "text" : "password"} 
-                  placeholder="••••••••" 
-                  value={passwordForm.currentPassword} 
-                  onChange={e => setPasswordForm({...passwordForm, currentPassword: e.target.value})} 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowCurrent(!showCurrent)} 
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                >
-                  {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>New Password</label>
-              <div style={{ position: 'relative' }}>
-                <input 
-                  className="form-input" 
-                  style={{ ...inputStyle, paddingRight: 40 }} 
-                  type={showNew ? "text" : "password"} 
-                  placeholder="Min 8 characters" 
-                  value={passwordForm.newPassword} 
-                  onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowNew(!showNew)} 
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                >
-                  {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Confirm New Password</label>
-              <div style={{ position: 'relative' }}>
-                <input 
-                  className="form-input" 
-                  style={{ ...inputStyle, paddingRight: 40 }} 
-                  type={showConfirm ? "text" : "password"} 
-                  placeholder="Re-enter" 
-                  value={passwordForm.confirmPassword} 
-                  onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})} 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowConfirm(!showConfirm)} 
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-                >
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-            
-            {/* Real-time Validation Hints */}
-            {(passwordForm.newPassword) && (
-              <div style={{ marginBottom: 18, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasMinLength ? 'var(--success)' : 'var(--text-muted)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasMinLength ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
-                    {hasMinLength ? '✓' : '•'}
-                  </span>
-                  Must be at least 8 characters
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasNumber ? 'var(--success)' : 'var(--text-muted)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasNumber ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
-                    {hasNumber ? '✓' : '•'}
-                  </span>
-                  Must contain at least one number (0-9)
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasSpecial ? 'var(--success)' : 'var(--text-muted)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasSpecial ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
-                    {hasSpecial ? '✓' : '•'}
-                  </span>
-                  Must contain at least one special character (!@#$%^&*)
+            <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }} style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Current Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    className="form-input" 
+                    style={{ ...inputStyle, paddingRight: 40 }} 
+                    type={showCurrent ? "text" : "password"} 
+                    placeholder="••••••••" 
+                    value={passwordForm.currentPassword} 
+                    onChange={e => setPasswordForm({...passwordForm, currentPassword: e.target.value})} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowCurrent(!showCurrent)} 
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
-            )}
 
-            <button className="btn btn-primary" disabled={changingPassword || !passwordForm.currentPassword || !isPasswordValid} onClick={handleChangePassword}>{changingPassword ? 'Changing...' : 'Update Password'}</button>
-          </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>New Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    className="form-input" 
+                    style={{ ...inputStyle, paddingRight: 40 }} 
+                    type={showNew ? "text" : "password"} 
+                    placeholder="Min 8 characters" 
+                    value={passwordForm.newPassword} 
+                    onChange={e => setPasswordForm({...passwordForm, newPassword: e.target.value})} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowNew(!showNew)} 
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Confirm New Password</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    className="form-input" 
+                    style={{ ...inputStyle, paddingRight: 40 }} 
+                    type={showConfirm ? "text" : "password"} 
+                    placeholder="Re-enter" 
+                    value={passwordForm.confirmPassword} 
+                    onChange={e => setPasswordForm({...passwordForm, confirmPassword: e.target.value})} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowConfirm(!showConfirm)} 
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                  >
+                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Real-time Validation Hints */}
+              {(passwordForm.newPassword) && (
+                <div style={{ marginBottom: 18, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasMinLength ? 'var(--success)' : 'var(--text-muted)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasMinLength ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
+                      {hasMinLength ? '✓' : '•'}
+                    </span>
+                    Must be at least 8 characters
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasNumber ? 'var(--success)' : 'var(--text-muted)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasNumber ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
+                      {hasNumber ? '✓' : '•'}
+                    </span>
+                    Must contain at least one number (0-9)
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: hasSpecial ? 'var(--success)' : 'var(--text-muted)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: hasSpecial ? 'rgba(5, 150, 105, 0.15)' : 'rgba(148, 163, 184, 0.1)', fontWeight: 'bold', fontSize: 10 }}>
+                      {hasSpecial ? '✓' : '•'}
+                    </span>
+                    Must contain at least one special character (!@#$%^&*)
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" className="btn btn-primary" disabled={changingPassword || !passwordForm.currentPassword || !isPasswordValid}>{changingPassword ? 'Changing...' : 'Update Password'}</button>
+            </form>
         </div>
       </div>
 
@@ -327,7 +355,7 @@ export default function SettingsPage() {
       </div>
 
       {deleteConfirm && (
-        <div className="modal-overlay" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); }}>
+        <div className="modal-overlay" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); setDeleteOtp(''); setOtpSent(false); setShowDeletePassword(false); }}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440, textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 15 }}>
               <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: 15, borderRadius: '50%' }}>
@@ -339,24 +367,68 @@ export default function SettingsPage() {
               This will permanently delete your account, family members, SIPs, FDs, stocks, and alerts. <strong>This action cannot be undone.</strong>
             </div>
             
-            <div style={{ textAlign: 'left', marginBottom: 24 }}>
-              <label style={labelStyle}>Enter Password to Confirm</label>
-              <input 
-                className="form-input" 
-                style={inputStyle} 
-                type="password" 
-                placeholder="Confirm your password" 
-                value={deletePassword} 
-                onChange={e => setDeletePassword(e.target.value)} 
-              />
-            </div>
+            <form onSubmit={(e) => { e.preventDefault(); if (!otpSent) { handleRequestDeleteOtp(); } else { handleDeleteAccount(); } }}>
+              {!otpSent ? (
+                <div style={{ textAlign: 'left', marginBottom: 24 }}>
+                  <label style={labelStyle}>Enter Password to Confirm</label>
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      className="form-input" 
+                      style={{ ...inputStyle, paddingRight: 40 }} 
+                      type={showDeletePassword ? "text" : "password"} 
+                      placeholder="Confirm your password" 
+                      value={deletePassword} 
+                      onChange={e => setDeletePassword(e.target.value)} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowDeletePassword(!showDeletePassword)} 
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                    >
+                      {showDeletePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'left', marginBottom: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, padding: '10px 12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--success)' }}>
+                    <span>✓</span> Password verified successfully.
+                  </div>
+                  <label style={labelStyle}>Enter 6-Digit Email Verification Code</label>
+                  <input 
+                    className="form-input" 
+                    style={{ ...inputStyle, letterSpacing: '4px', textAlign: 'center', fontSize: '18px', fontWeight: 'bold' }} 
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength="6"
+                    placeholder="000000" 
+                    value={deleteOtp} 
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setDeleteOtp(val.slice(0, 6));
+                    }} 
+                  />
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>
+                    We sent a 6-digit secure code to your registered email address.
+                  </p>
+                </div>
+              )}
 
-            <div className="modal-buttons">
-              <button className="btn btn-secondary" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); }}>Cancel</button>
-              <button className="btn btn-danger" disabled={deleting || !deletePassword} onClick={handleDeleteAccount}>
-                {deleting ? 'Deleting...' : 'Delete Permanently'}
-              </button>
-            </div>
+              <div className="modal-buttons">
+                <button type="button" className="btn btn-secondary" onClick={() => { setDeleteConfirm(false); setDeletePassword(''); setDeleteOtp(''); setOtpSent(false); setShowDeletePassword(false); }}>Cancel</button>
+                
+                {!otpSent ? (
+                  <button type="submit" className="btn btn-danger" disabled={requestingOtp || !deletePassword}>
+                    {requestingOtp ? 'Requesting OTP...' : 'Request Deletion OTP'}
+                  </button>
+                ) : (
+                  <button type="submit" className="btn btn-danger" disabled={deleting || deleteOtp.length !== 6}>
+                    {deleting ? 'Deleting...' : 'Delete Permanently'}
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
         </div>
       )}

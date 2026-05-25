@@ -211,6 +211,21 @@ exports.googleAuth = async (req, res) => {
         familyId: uuidv4(),
         googleId,
       });
+
+      // Verify Google user was successfully created and stored in the database
+      const verifiedGoogleUser = await User.findById(user._id);
+      if (verifiedGoogleUser) {
+        // Asynchronously send the welcome email in the background
+        renderEmail('welcome', { userName: verifiedGoogleUser.name }, 'Welcome to Vestra Vault! 💎')
+          .then(html => {
+            sendEmail({
+              email: verifiedGoogleUser.email,
+              subject: 'Welcome to Vestra Vault! 💎',
+              html
+            }).catch(err => console.error('Error sending Google welcome email:', err));
+          })
+          .catch(err => console.error('Error rendering Google welcome email:', err));
+      }
     }
 
     const token = generateToken(user._id);
@@ -328,22 +343,89 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// @desc    Delete account permanently
-// @route   DELETE /api/auth/delete-account
-exports.deleteAccount = async (req, res) => {
+// @desc    Request account deletion (generates OTP code and sends email)
+// @route   POST /api/auth/delete-account-request
+exports.deleteAccountRequest = async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
-      return res.status(400).json({ message: 'Please provide your password to confirm deletion' });
+      return res.status(400).json({ message: 'Please provide password to confirm deletion' });
     }
 
     const user = await User.findById(req.user.id).select('+password');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) return res.status(401).json({ message: 'Password is incorrect' });
+    if (!isMatch) return res.status(400).json({ message: 'Password is incorrect' });
+
+    // Generate 6 digit code
+    const deleteCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Hash code and set to deleteAccountToken
+    user.deleteAccountToken = crypto.createHash('sha256').update(deleteCode).digest('hex');
+    user.deleteAccountExpire = Date.now() + 10 * 60 * 1000; // 10 mins
+
+    await user.save();
+
+    const html = await renderEmail('deleteConfirm', {
+      userName: user.name,
+      deleteCode: deleteCode
+    }, 'Confirm Account Deletion - Vestra Vault');
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Confirm Account Deletion - Vestra Vault ⚠️',
+        html
+      });
+      res.status(200).json({ success: true, message: 'Verification OTP sent to email' });
+    } catch (err) {
+      user.deleteAccountToken = undefined;
+      user.deleteAccountExpire = undefined;
+      await user.save();
+      console.error('Delete email send error:', err);
+      return res.status(500).json({ message: 'Email could not be sent. Please check SMTP configuration.' });
+    }
+  } catch (error) {
+    console.error('Delete account request error:', error);
+    res.status(500).json({ message: 'Server error requesting account deletion' });
+  }
+};
+
+// @desc    Delete account permanently
+// @route   DELETE /api/auth/delete-account
+exports.deleteAccount = async (req, res) => {
+  try {
+    const { password, otp } = req.body;
+    if (!password || !otp) {
+      return res.status(400).json({ message: 'Please provide both password and 6-digit verification code' });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) return res.status(400).json({ message: 'Password is incorrect' });
+
+    const deleteAccountToken = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.deleteAccountToken !== deleteAccountToken || user.deleteAccountExpire < Date.now()) {
+      return res.status(400).json({ message: 'Verification code is invalid or has expired' });
+    }
 
     const familyId = user.familyId;
+    const userEmail = user.email;
+    const userName = user.name;
+
+    // Send the farewell/deleted confirmation email in the background first so it gets sent successfully before purging!
+    renderEmail('accountDeleted', { userName }, 'Account Successfully Deleted - Vestra Vault')
+      .then(html => {
+        sendEmail({
+          email: userEmail,
+          subject: 'Your Vestra Vault Account Has Been Deleted',
+          html
+        }).catch(err => console.error('Error sending accountDeleted email:', err));
+      })
+      .catch(err => console.error('Error rendering accountDeleted email:', err));
 
     // Delete ALL data associated with this family
     await Promise.all([

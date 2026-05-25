@@ -1,0 +1,35 @@
+<h2 style="color: #ef4444; font-size: 22px; font-weight: 700; margin-top: 0; margin-bottom: 12px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">Confirm Account Deletion ⚠️</h2>
+<p style="color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+   Hello <%= userName %>,<br>
+   We received a request to permanently delete your <strong>Vestra Vault</strong> account. To complete this action securely, please use the 6-digit verification code below:
+</p>
+
+<!-- Verification Code Block -->
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+  <tr>
+    <td align="center">
+      <div style="background: linear-gradient(135deg, #ef4444, #b91c1c); display: inline-block; padding: 14px 32px; border-radius: 12px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);">
+        <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #ffffff; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <%= deleteCode %>
+        </span>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #475569; font-size: 13px; line-height: 1.6; margin-bottom: 24px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  This verification code is valid for <strong>10 minutes</strong>. 
+</p>
+
+<div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
+  <p style="color: #b91c1c; font-size: 13px; font-weight: 700; margin: 0 0 4px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    CRITICAL WARNING
+  </p>
+  <p style="color: #7f1d1d; font-size: 12px; margin: 0; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    Confirming this action will <strong>permanently purge</strong> your profile, all portfolio balances, SIP records, Fixed Deposit trackers, stock holdings, and family accounts. This action is irreversible.
+  </p>
+</div>
+
+<p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin-bottom: 0; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  If you did not initiate this request, please change your password and secure your account immediately.
+</p>
