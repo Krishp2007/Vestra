@@ -1,0 +1,53 @@
+<% 
+  var type = locals.alertType || 'target'; 
+  var user = locals.userName || 'User';
+  var sym = locals.symbol || 'Stock';
+  var curPrice = locals.currentPrice || '0';
+  var trigPrice = locals.triggerPrice || '0';
+  var membName = locals.memberName || '';
+%>
+<h2 style="color: #1e293b; font-size: 22px; font-weight: 700; margin-top: 0; margin-bottom: 12px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;"><%= type === 'target' ? '🎯 Target Price Hit!' : '🛑 Stop Loss Triggered!' %></h2>
+<p style="color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  Hello <strong><%= user %></strong>,<br>
+  Your price alert for <strong><%= sym %></strong> has been triggered.
+</p>
+
+<!-- Stock Price Badge -->
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+  <tr>
+    <td align="center">
+      <div style="background: linear-gradient(135deg, <%= type === 'target' ? '#059669, #10b981' : '#ef4444, #b91c1c' %>); display: inline-block; padding: 14px 32px; border-radius: 12px; box-shadow: 0 4px 10px <%= type === 'target' ? 'rgba(5, 150, 105, 0.25)' : 'rgba(239, 68, 68, 0.25)' %>;">
+        <span style="font-family: 'Courier New', Courier, monospace; font-size: 28px; font-weight: 800; letter-spacing: 2px; color: #ffffff; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          ₹<%= curPrice %>
+        </span>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #475569;">
+    <tr>
+      <td style="padding: 6px 0; font-weight: 600; width: 50%;">Stock Symbol</td>
+      <td style="padding: 6px 0; text-align: right;"><%= sym %></td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Current Price</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right;">₹<%= curPrice %></td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;"><%= type === 'target' ? 'Target Price' : 'Stop Loss Price' %></td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right; color: <%= type === 'target' ? '#059669' : '#ef4444' %>; font-weight: 700;">₹<%= trigPrice %></td>
+    </tr>
+    <% if (membName) { %>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Member</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right;"><%= membName %></td>
+    </tr>
+    <% } %>
+  </table>
+</div>
+
+<p style="color: #64748b; font-size: 13px; text-align: center; margin-bottom: 0; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  This alert has been automatically cleared. Set new alerts anytime from your Stocks dashboard.
+</p>

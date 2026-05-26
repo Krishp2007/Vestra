@@ -62,24 +62,8 @@ export default function StockPage() {
            const change = res.data.change || 0;
            const changePercent = res.data.changePercent || 0;
            
-           let updates = {};
            if (Math.abs(price - (stk.currentPrice || 0)) > 0.01 || stk.dayChange !== change) {
-             updates = { currentPrice: price, dayChange: change, dayChangePercent: changePercent, lastPriceUpdate: new Date() };
-           }
-
-           if (stk.targetPrice && price >= stk.targetPrice) {
-             await api.post('/alerts', { type: 'price_alert', title: `🎯 Target Hit: ${stk.symbol}`, message: `${stk.symbol} has crossed your target price of ₹${stk.targetPrice}!`, severity: 'info', relatedEntity: { id: stk._id, type: 'stock' }});
-             updates.targetPrice = null;
-             toast.success(`🎯 ${stk.symbol} Hit Target Price!`, { icon: '🎯' });
-           }
-           if (stk.stopLossPrice && price <= stk.stopLossPrice) {
-             await api.post('/alerts', { type: 'price_alert', title: `🛑 Stop Loss Hit: ${stk.symbol}`, message: `${stk.symbol} has dropped below your stop loss of ₹${stk.stopLossPrice}!`, severity: 'warning', relatedEntity: { id: stk._id, type: 'stock' }});
-             updates.stopLossPrice = null;
-             toast.error(`🛑 ${stk.symbol} Hit Stop Loss!`);
-           }
-
-           if (Object.keys(updates).length > 0) {
-             await api.put(`/stocks/${stk._id}`, updates);
+             await api.put(`/stocks/${stk._id}`, { currentPrice: price, dayChange: change, dayChangePercent: changePercent, lastPriceUpdate: new Date() });
              updated = true;
            }
          }

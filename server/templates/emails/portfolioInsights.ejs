@@ -1,0 +1,58 @@
+<% 
+  var user = locals.userName || 'User';
+  var list = locals.insights || [];
+%>
+<h2 style="color: #1e293b; font-size: 22px; font-weight: 700; margin-top: 0; margin-bottom: 8px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">💡 Personalized Portfolio Insights</h2>
+<p style="color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  Hello <strong><%= user %></strong>,<br>
+  Here is your latest automated wealth analysis and portfolio health digest.
+</p>
+
+<!-- Insights List -->
+<div style="margin-bottom: 28px;">
+  <% list.forEach(function(ins) { %>
+    <% 
+      var borderColor = '#e2e8f0';
+      var bgLight = '#f8fafc';
+      if (ins.severity === 'warning') {
+        borderColor = '#f59e0b';
+        bgLight = '#fffbeb';
+      } else if (ins.severity === 'critical') {
+        borderColor = '#ef4444';
+        bgLight = '#fef2f2';
+      } else if (ins.severity === 'success' || ins.type === 'milestone') {
+        borderColor = '#10b981';
+        bgLight = '#f0fdf4';
+      } else if (ins.severity === 'info') {
+        borderColor = '#6366f1';
+        bgLight = '#e0e7ff';
+      }
+    %>
+    <div style="background-color: <%= bgLight %>; border-left: 4px solid <%= borderColor %>; border-radius: 8px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+          <td style="font-size: 24px; width: 36px; vertical-align: top; padding-top: 2px;"><%= ins.icon || '💡' %></td>
+          <td style="vertical-align: top; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <div style="font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 4px;"><%= ins.title %></div>
+            <div style="font-size: 13px; color: #475569; line-height: 1.5;"><%= ins.message %></div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  <% }); %>
+</div>
+
+<!-- CTA Button -->
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+  <tr>
+    <td align="center">
+      <a href="http://localhost:5173" target="_blank" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 12px 30px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);">
+        View Full Dashboard
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #64748b; font-size: 12px; text-align: center; margin-bottom: 0; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  Insights are generated securely by Vestra Vault's integrated analytics engine. To opt-out or modify update frequencies, please adjust your notification settings.
+</p>

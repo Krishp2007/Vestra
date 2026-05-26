@@ -85,3 +85,31 @@ exports.createAlert = async (req, res) => {
     res.status(500).json({ message: 'Error creating alert' });
   }
 };
+
+// @desc    Email current portfolio insights to user
+// @route   POST /api/alerts/email-insights
+exports.emailInsights = async (req, res) => {
+  try {
+    const { insights } = req.body;
+    if (!insights || !Array.isArray(insights)) {
+      return res.status(400).json({ message: 'Insights list is required' });
+    }
+
+    const { sendEmail, renderEmail } = require('../utils/sendEmail');
+    const html = await renderEmail('portfolioInsights', {
+      userName: req.user.name,
+      insights: insights
+    }, 'Vestra Vault — Personalized Wealth Insights 💡');
+
+    await sendEmail({
+      email: req.user.email,
+      subject: 'Vestra Vault — Personalized Wealth Insights 💡',
+      html
+    });
+
+    res.json({ success: true, message: 'Insights sent to your registered email address!' });
+  } catch (error) {
+    console.error('Email insights error:', error);
+    res.status(500).json({ message: 'Error sending insights email' });
+  }
+};

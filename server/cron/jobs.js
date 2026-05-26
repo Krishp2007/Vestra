@@ -3,6 +3,21 @@ const SIP = require('../models/SIP');
 const FD = require('../models/FD');
 const Stock = require('../models/Stock');
 const Alert = require('../models/Alert');
+const User = require('../models/User');
+const FamilyMember = require('../models/FamilyMember');
+const { sendEmail, renderEmail } = require('../utils/sendEmail');
+
+// Helper: send email to the user who owns a given familyId
+const sendAlertEmail = async (familyId, templateName, templateData, subject) => {
+  try {
+    const user = await User.findOne({ familyId });
+    if (!user || !user.email) return;
+    const html = await renderEmail(templateName, { ...templateData, userName: user.name }, subject);
+    await sendEmail({ email: user.email, subject, html });
+  } catch (err) {
+    console.error(`[Email] Failed to send ${templateName} alert:`, err.message);
+  }
+};
 
 /**
  * Automatically backfills and recalculates all historical payments, units, 
@@ -144,7 +159,7 @@ const startCronJobs = () => {
   cron.schedule('*/30 * * * * *', async () => {
     try {
       // Update Stock Prices
-      const stocks = await Stock.find();
+      const stocks = await Stock.find().populate('memberId', 'name');
       if (stocks.length > 0) {
         const uniqueSymbols = [...new Set(stocks.map(s => s.symbol))];
         for (const symbol of uniqueSymbols) {
@@ -162,6 +177,44 @@ const startCronJobs = () => {
             }
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (err) { console.error(`Error updating price for ${symbol}:`, err.message); }
+        }
+
+        // Check Target Price & Stop Loss alerts (server-side)
+        for (const stk of stocks) {
+          if (!stk.currentPrice) continue;
+          const price = stk.currentPrice;
+
+          if (stk.targetPrice && price >= stk.targetPrice) {
+            await Alert.create({
+              familyId: stk.familyId, memberId: stk.memberId?._id,
+              type: 'price_alert', title: `🎯 Target Hit: ${stk.symbol}`,
+              message: `${stk.symbol} has crossed your target price of ₹${stk.targetPrice}! Current: ₹${price}`,
+              severity: 'info', relatedEntity: { id: stk._id, type: 'stock' }
+            });
+            sendAlertEmail(stk.familyId, 'stockPriceAlert', {
+              alertType: 'target', symbol: stk.symbol, currentPrice: price.toLocaleString('en-IN'),
+              triggerPrice: stk.targetPrice.toLocaleString('en-IN'), memberName: stk.memberId?.name || ''
+            }, `🎯 Target Hit: ${stk.symbol} — Vestra Vault`);
+            stk.targetPrice = null;
+            await stk.save();
+            console.log(`🎯 Target price alert fired for ${stk.symbol}`);
+          }
+
+          if (stk.stopLossPrice && price <= stk.stopLossPrice) {
+            await Alert.create({
+              familyId: stk.familyId, memberId: stk.memberId?._id,
+              type: 'price_alert', title: `🛑 Stop Loss Hit: ${stk.symbol}`,
+              message: `${stk.symbol} has dropped below your stop loss of ₹${stk.stopLossPrice}! Current: ₹${price}`,
+              severity: 'warning', relatedEntity: { id: stk._id, type: 'stock' }
+            });
+            sendAlertEmail(stk.familyId, 'stockPriceAlert', {
+              alertType: 'stop', symbol: stk.symbol, currentPrice: price.toLocaleString('en-IN'),
+              triggerPrice: stk.stopLossPrice.toLocaleString('en-IN'), memberName: stk.memberId?.name || ''
+            }, `🛑 Stop Loss Hit: ${stk.symbol} — Vestra Vault`);
+            stk.stopLossPrice = null;
+            await stk.save();
+            console.log(`🛑 Stop loss alert fired for ${stk.symbol}`);
+          }
         }
       }
 
@@ -248,6 +301,11 @@ const startCronJobs = () => {
             triggerDate: today,
             relatedEntity: { id: sip._id, type: 'sip' }
           });
+          sendAlertEmail(sip.familyId, 'sipProcessed', {
+            fundName: sip.fundName, amount: sip.amountPerMonth.toLocaleString('en-IN'),
+            processedDate: today.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+            memberName: sip.memberId?.name || ''
+          }, `📅 SIP Processed: ${sip.fundName} — Vestra Vault`);
         }
       }
       console.log(`✅ SIP automation: Processed ${dueSips.length} SIPs`);
@@ -266,7 +324,7 @@ const startCronJobs = () => {
       const maturedFds = await FD.find({
         status: 'active',
         maturityDate: { $lte: today }
-      });
+      }).populate('memberId', 'name');
 
       for (const fd of maturedFds) {
         if (fd.isAutoRenew) {
@@ -300,6 +358,10 @@ const startCronJobs = () => {
             triggerDate: today,
             relatedEntity: { id: fd._id, type: 'fd' }
           });
+          sendAlertEmail(fd.familyId, 'fdAutoRenewed', {
+            bankName: fd.bankName, newPrincipal: newPrincipal.toLocaleString('en-IN'),
+            interestRate: fd.interestRate, newMaturityDate: newMaturity.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+          }, `🏦 FD Auto-Renewed: ${fd.bankName} — Vestra Vault`);
         } else {
           fd.status = 'matured';
           await fd.save();
@@ -326,6 +388,13 @@ const startCronJobs = () => {
             triggerDate: today,
             relatedEntity: { id: fd._id, type: 'fd' }
           });
+          sendAlertEmail(fd.familyId, 'fdMaturingSoon', {
+            bankName: fd.bankName, daysLeft,
+            principal: fd.principalAmount.toLocaleString('en-IN'), interestRate: fd.interestRate,
+            maturityDate: new Date(fd.maturityDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+            maturityAmount: (fd.maturityAmount || fd.principalAmount).toLocaleString('en-IN'),
+            memberName: fd.memberId?.name || '', isAutoRenew: fd.isAutoRenew
+          }, `⏰ FD Maturing in ${daysLeft} Days — Vestra Vault`);
         }
       }
       console.log(`✅ FD automation complete`);
@@ -334,7 +403,90 @@ const startCronJobs = () => {
     }
   });
 
-  console.log('🕐 Full Automation Suite Started (Stocks 30s | SIP/FD Daily)');
+  // 4. Automated Portfolio Insights Digest Email (Runs automatically every 15 days at 9 AM)
+  cron.schedule('0 9 */15 * *', async () => {
+    console.log('⏰ Running Automated Portfolio Insights dispatch...');
+    try {
+      const users = await User.find();
+      for (const user of users) {
+        const familyId = user.familyId;
+        if (!familyId) continue;
+
+        // Fetch all data for this family
+        const [sips, fds, stocks, members] = await Promise.all([
+          SIP.find({ familyId }),
+          FD.find({ familyId }),
+          Stock.find({ familyId }),
+          FamilyMember.find({ familyId, isActive: true })
+        ]);
+
+        let insightsList = [];
+        // Try Python service
+        try {
+          const response = await fetch('http://localhost:5001/insights', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sips, fds, stocks, members })
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.insights && data.insights.length > 0) {
+              insightsList = data.insights;
+            }
+          }
+        } catch (err) {
+          console.warn(`[Cron] Python service unavailable for ${user.email} insights fallback`);
+        }
+
+        // Fallback: generate basic insights if Python service failed or returned empty
+        if (insightsList.length === 0) {
+          const activeSips = sips.filter(s => s.status === 'active');
+          const activeFds = fds.filter(f => f.status === 'active');
+          
+          if (activeSips.length > 0) {
+            insightsList.push({
+              icon: '📈', severity: 'info', type: 'sip',
+              title: `${activeSips.length} Active SIPs`,
+              message: `Total monthly commitment: ₹${activeSips.reduce((s, i) => s + (i.amountPerMonth || 0), 0).toLocaleString('en-IN')}`
+            });
+          }
+          if (activeFds.length > 0) {
+            insightsList.push({
+              icon: '🏦', severity: 'info', type: 'fd',
+              title: `${activeFds.length} Fixed Deposits`,
+              message: `Total principal: ₹${activeFds.reduce((s, f) => s + (f.principalAmount || 0), 0).toLocaleString('en-IN')}`
+            });
+          }
+          if (activeSips.length === 0 && activeFds.length === 0) {
+            insightsList.push({
+              icon: '💡', severity: 'info', type: 'custom',
+              title: 'Get Started!',
+              message: 'Add investments to see personalized insights.'
+            });
+          }
+        }
+
+        // Send the email
+        if (insightsList.length > 0) {
+          const html = await renderEmail('portfolioInsights', {
+            userName: user.name,
+            insights: insightsList
+          }, 'Vestra Vault — Your 15-Day Wealth Insights Digest 💡');
+
+          await sendEmail({
+            email: user.email,
+            subject: 'Vestra Vault — Your 15-Day Wealth Insights Digest 💡',
+            html
+          });
+          console.log(`✉️ Automated 15-day insights sent to ${user.email}`);
+        }
+      }
+    } catch (error) {
+      console.error('Automated insights dispatch error:', error);
+    }
+  });
+
+  console.log('🕐 Full Automation Suite Started (Stocks 30s | SIP/FD Daily | Insights 15-Day)');
 };
 
 module.exports = { startCronJobs, recalculateSipLedger };
