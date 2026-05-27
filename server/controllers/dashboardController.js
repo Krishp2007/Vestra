@@ -382,3 +382,70 @@ exports.importData = async (req, res) => {
     res.status(500).json({ message: 'Error importing data' });
   }
 };
+
+// @desc    Get smart insights from Python service
+// @route   POST /api/dashboard/insights
+exports.getPortfolioInsights = async (req, res) => {
+  try {
+    const familyId = req.user.familyId;
+    if (!familyId) return res.status(400).json({ message: 'Family ID is required' });
+
+    // Fetch all family holdings
+    const [sips, fds, stocks, members] = await Promise.all([
+      SIP.find({ familyId }),
+      FD.find({ familyId }),
+      Stock.find({ familyId }),
+      FamilyMember.find({ familyId, isActive: true })
+    ]);
+
+    let insightsList = [];
+    // Query Python service on port 5001 (internal co-located call)
+    try {
+      const pythonUrl = process.env.ANALYTICS_SERVICE_URL || 'http://localhost:5001/insights';
+      const response = await fetch(pythonUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sips, fds, stocks, members })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.insights) insightsList = data.insights;
+      }
+    } catch (err) {
+      console.warn('[Express] Python service unavailable for insights fallback');
+    }
+
+    // Fallback: generate basic insights Express-side if Python service fails
+    if (insightsList.length === 0) {
+      const activeSips = sips.filter(s => s.status === 'active');
+      const activeFds = fds.filter(f => f.status === 'active');
+      
+      if (activeSips.length > 0) {
+        insightsList.push({
+          icon: '📈', severity: 'info', type: 'sip',
+          title: `${activeSips.length} Active SIPs`,
+          message: `Total monthly commitment: ₹${activeSips.reduce((s, i) => s + (i.amountPerMonth || 0), 0).toLocaleString('en-IN')}`
+        });
+      }
+      if (activeFds.length > 0) {
+        insightsList.push({
+          icon: '🏦', severity: 'info', type: 'fd',
+          title: `${activeFds.length} Fixed Deposits`,
+          message: `Total principal: ₹${activeFds.reduce((s, f) => s + (f.principalAmount || 0), 0).toLocaleString('en-IN')}`
+        });
+      }
+      if (activeSips.length === 0 && activeFds.length === 0) {
+        insightsList.push({
+          icon: '💡', severity: 'info', type: 'custom',
+          title: 'Get Started!',
+          message: 'Add investments to see personalized insights.'
+        });
+      }
+    }
+
+    res.json({ success: true, insights: insightsList });
+  } catch (error) {
+    console.error('Insights endpoint error:', error);
+    res.status(500).json({ message: 'Error generating insights' });
+  }
+};

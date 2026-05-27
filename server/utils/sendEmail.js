@@ -40,12 +40,18 @@ const sendEmail = async (options) => {
 
 const renderEmail = async (templateName, data, title = 'Vestra Vault') => {
   const templatePath = path.join(__dirname, `../templates/emails/${templateName}.ejs`);
-  const body = await ejs.renderFile(templatePath, data);
+  
+  // Inject dynamic production domain automatically
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const mergedData = { frontendUrl, ...data };
+  
+  const body = await ejs.renderFile(templatePath, mergedData);
   
   const layoutPath = path.join(__dirname, '../templates/emails/baseLayout.ejs');
   return await ejs.renderFile(layoutPath, {
     body,
-    title
+    title,
+    frontendUrl
   });
 };
 

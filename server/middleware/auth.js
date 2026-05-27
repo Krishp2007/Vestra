@@ -25,7 +25,10 @@ const protect = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth middleware error:', error.message);
-    res.status(401).json({ message: 'Not authorized, token invalid' });
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Not authorized, token invalid' });
+    }
+    res.status(500).json({ message: 'Database connection failed during authorization checks' });
   }
 };
 

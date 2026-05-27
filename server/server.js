@@ -16,8 +16,13 @@ const app = express();
 
 // Middleware
 app.use(helmet());
+
+const allowedOrigins = process.env.CLIENT_ORIGINS 
+  ? process.env.CLIENT_ORIGINS.split(',').map(o => o.trim()) 
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));

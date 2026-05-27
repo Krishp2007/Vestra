@@ -9,28 +9,8 @@ export default function InsightsPage() {
   useEffect(() => { load(); }, []);
   const load = async () => {
     try {
-      // Fetch all data and send to Python analytics
-      const [sips, fds, stocks, members] = await Promise.all([
-        api.get('/sips'), api.get('/fds'), api.get('/stocks'), api.get('/members')
-      ]);
-      // Try Python service
-      try {
-        const res = await fetch('http://localhost:5001/insights', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ sips: sips.data.data, fds: fds.data.data, stocks: stocks.data.data, members: members.data.data })
-        });
-        const data = await res.json();
-        if (data.insights) setInsights(data.insights);
-      } catch(e) {
-        // Fallback: generate basic insights client-side
-        const sipData = sips.data.data || [];
-        const fdData = fds.data.data || [];
-        const basic = [];
-        if (sipData.length > 0) basic.push({ icon:'📈', severity:'info', title:`${sipData.filter(s=>s.status==='active').length} Active SIPs`, message:`Total monthly commitment: ₹${sipData.filter(s=>s.status==='active').reduce((s,i)=>s+(i.amountPerMonth||0),0).toLocaleString('en-IN')}` });
-        if (fdData.length > 0) basic.push({ icon:'🏦', severity:'info', title:`${fdData.length} Fixed Deposits`, message:`Total principal: ₹${fdData.reduce((s,f)=>s+(f.principalAmount||0),0).toLocaleString('en-IN')}` });
-        if (sipData.length===0 && fdData.length===0) basic.push({ icon:'💡', severity:'info', title:'Get Started!', message:'Add investments to see personalized insights.' });
-        setInsights(basic);
-      }
+      const res = await api.post('/dashboard/insights');
+      if (res.data.insights) setInsights(res.data.insights);
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
   };
