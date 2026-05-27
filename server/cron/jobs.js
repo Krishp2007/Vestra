@@ -420,51 +420,8 @@ const startCronJobs = () => {
           FamilyMember.find({ familyId, isActive: true })
         ]);
 
-        let insightsList = [];
-        // Try Python service
-        try {
-          const response = await fetch('http://localhost:5001/insights', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sips, fds, stocks, members })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.insights && data.insights.length > 0) {
-              insightsList = data.insights;
-            }
-          }
-        } catch (err) {
-          console.warn(`[Cron] Python service unavailable for ${user.email} insights fallback`);
-        }
-
-        // Fallback: generate basic insights if Python service failed or returned empty
-        if (insightsList.length === 0) {
-          const activeSips = sips.filter(s => s.status === 'active');
-          const activeFds = fds.filter(f => f.status === 'active');
-          
-          if (activeSips.length > 0) {
-            insightsList.push({
-              icon: '📈', severity: 'info', type: 'sip',
-              title: `${activeSips.length} Active SIPs`,
-              message: `Total monthly commitment: ₹${activeSips.reduce((s, i) => s + (i.amountPerMonth || 0), 0).toLocaleString('en-IN')}`
-            });
-          }
-          if (activeFds.length > 0) {
-            insightsList.push({
-              icon: '🏦', severity: 'info', type: 'fd',
-              title: `${activeFds.length} Fixed Deposits`,
-              message: `Total principal: ₹${activeFds.reduce((s, f) => s + (f.principalAmount || 0), 0).toLocaleString('en-IN')}`
-            });
-          }
-          if (activeSips.length === 0 && activeFds.length === 0) {
-            insightsList.push({
-              icon: '💡', severity: 'info', type: 'custom',
-              title: 'Get Started!',
-              message: 'Add investments to see personalized insights.'
-            });
-          }
-        }
+        const { generateInsights } = require('../utils/portfolioInsights');
+        const insightsList = generateInsights({ sips, fds, stocks, members });
 
         // Send the email
         if (insightsList.length > 0) {
