@@ -92,7 +92,7 @@ export default function MemberDashboard() {
             <div className="member-header-value">{formatCurrency(s.totalCurrentValue || 0)}</div>
             <div className="member-header-returns" style={{ color: isPos ? 'var(--success)' : 'var(--danger)' }}>
               {isPos ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>}
-              {isPos ? '+' : ''}{formatPercent(s.totalReturns || 0)} returns
+              {formatPercent(s.totalReturns || 0)} returns
             </div>
           </div>
         </div>

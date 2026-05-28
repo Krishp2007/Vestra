@@ -26,7 +26,7 @@ export default function QuickAddPage() {
   // SIP Form — identical to SIPPage
   const [sipForm, setSipForm] = useState({ fundName: '', schemeCode: '', memberId: '', amountPerMonth: '', sipDate: 1, startDate: '', category: 'Equity', status: 'active', totalInvested: '', totalUnits: '', notes: '' });
   // FD Form — identical to FDPage
-  const [fdForm, setFdForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' });
+  const [fdForm, setFdForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '' });
   // Stock Form — identical to StockPage
   const [stockForm, setStockForm] = useState({ symbol: '', memberId: '', exchange: 'NSE', type: 'buy', date: '', quantity: '', pricePerUnit: '', brokerage: 0 });
 

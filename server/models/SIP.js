@@ -1,10 +1,22 @@
 const mongoose = require('mongoose');
 
+// Helper to round decimal numbers to exactly 2 decimal places
+const roundToTwo = (val) => {
+  if (typeof val !== 'number') return val;
+  return Math.round(val * 100) / 100;
+};
+
+// Helper to round units and NAV to exactly 4 decimal places (vital for AMFI mutual fund accuracy)
+const roundToFour = (val) => {
+  if (typeof val !== 'number') return val;
+  return Math.round(val * 10000) / 10000;
+};
+
 const sipPaymentSchema = new mongoose.Schema({
   date: { type: Date, required: true },
-  amount: { type: Number, required: true },
-  nav: Number,
-  units: Number,
+  amount: { type: Number, required: true, set: roundToTwo },
+  nav: { type: Number, set: roundToFour },
+  units: { type: Number, set: roundToFour },
   status: {
     type: String,
     enum: ['completed', 'missed', 'pending'],
@@ -32,7 +44,8 @@ const sipSchema = new mongoose.Schema({
   amountPerMonth: {
     type: Number,
     required: [true, 'Monthly amount is required'],
-    min: [100, 'Minimum SIP amount is ₹100']
+    min: [100, 'Minimum SIP amount is ₹100'],
+    set: roundToTwo
   },
   sipDate: {
     type: Number,
@@ -47,16 +60,19 @@ const sipSchema = new mongoose.Schema({
   endDate: Date,
   currentValue: {
     type: Number,
-    default: 0
+    default: 0,
+    set: roundToTwo
   },
   totalInvested: {
     type: Number,
     required: [true, 'Total invested amount is required'],
-    default: 0
+    default: 0,
+    set: roundToTwo
   },
   totalUnits: {
     type: Number,
-    default: 0
+    default: 0,
+    set: roundToFour
   },
   status: {
     type: String,

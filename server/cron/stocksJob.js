@@ -1,20 +1,8 @@
 const cron = require('node-cron');
 const Stock = require('../models/Stock');
 const Alert = require('../models/Alert');
-const User = require('../models/User');
 const logger = require('../utils/logger');
-const { sendEmail, renderEmail } = require('../utils/sendEmail');
-
-const sendAlertEmail = async (familyId, templateName, templateData, subject) => {
-  try {
-    const user = await User.findOne({ familyId });
-    if (!user || !user.email) return;
-    const html = await renderEmail(templateName, { ...templateData, userName: user.name }, subject);
-    await sendEmail({ email: user.email, subject, html });
-  } catch (err) {
-    logger.error('StocksJob', `Failed to send email alert: ${err.message}`);
-  }
-};
+const { sendAlertEmail } = require('../utils/sendAlertEmail');
 
 const startStocksJob = () => {
   // Run stock price crawler and threshold evaluation every 30 seconds (Mon-Fri, active market hours 9:00 AM to 3:59 PM only)

@@ -198,10 +198,10 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Start Date</div><div style={{ fontSize: 15, fontWeight: 500 }}>{formatDate(asset.startDate)}</div></div>
               </div>
               
-              {asset.notes && (
-                <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: 15, borderRadius: 8, borderLeft: '3px solid var(--accent)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 4 }}>NOTES</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{asset.notes}</div>
+              {asset.closureReason && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: 15, borderRadius: 8, borderLeft: '3px solid var(--danger)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--danger)', fontWeight: 600, marginBottom: 4 }}>CLOSURE DETAILS</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{asset.closureReason}</div>
                 </div>
               )}
 
@@ -244,10 +244,10 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
                  {asset.fdNumber && <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>FD Number</div><div style={{ fontSize: 15, fontWeight: 500 }}>{asset.fdNumber}</div></div>}
               </div>
               
-              {asset.notes && (
-                <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: 15, borderRadius: 8, borderLeft: '3px solid var(--accent)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 4 }}>NOTES</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{asset.notes}</div>
+              {asset.closureReason && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: 15, borderRadius: 8, borderLeft: '3px solid var(--danger)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--danger)', fontWeight: 600, marginBottom: 4 }}>CLOSURE DETAILS</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{asset.closureReason}</div>
                 </div>
               )}
 
@@ -305,12 +305,7 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Sold</div><div style={{ fontSize: 15, fontWeight: 500 }}>{formatCurrency(asset.totalSold)}</div></div>
               </div>
               
-              {asset.notes && (
-                <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: 15, borderRadius: 8, borderLeft: '3px solid var(--accent)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 4 }}>NOTES</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{asset.notes}</div>
-                </div>
-              )}
+
 
               <div style={{ marginTop: 10, background: '#fff', border: '1px solid var(--border-color)', borderRadius: 8, padding: 15 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 15, display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14}/> 6M Price History</div>

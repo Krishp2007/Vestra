@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+// Helper to round decimal numbers to exactly 2 decimal places
+const roundToTwo = (val) => {
+  if (typeof val !== 'number') return val;
+  return Math.round(val * 100) / 100;
+};
+
 const fdSchema = new mongoose.Schema({
   memberId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -18,13 +24,15 @@ const fdSchema = new mongoose.Schema({
   principalAmount: {
     type: Number,
     required: [true, 'Principal amount is required'],
-    min: [1000, 'Minimum FD amount is ₹1,000']
+    min: [1000, 'Minimum FD amount is ₹1,000'],
+    set: roundToTwo
   },
   interestRate: {
     type: Number,
     required: [true, 'Interest rate is required'],
     min: 0,
-    max: 25
+    max: 25,
+    set: roundToTwo
   },
   compounding: {
     type: String,
@@ -39,7 +47,10 @@ const fdSchema = new mongoose.Schema({
     type: Date,
     required: [true, 'Maturity date is required']
   },
-  maturityAmount: Number,
+  maturityAmount: {
+    type: Number,
+    set: roundToTwo
+  },
   status: {
     type: String,
     enum: ['active', 'matured', 'premature-closed'],
@@ -50,6 +61,7 @@ const fdSchema = new mongoose.Schema({
     default: false
   },
   nominee: String,
+  closureReason: String
 }, {
   timestamps: true
 });

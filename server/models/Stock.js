@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+// Helper to automatically round decimal numbers to exactly 2 decimal places before saving to MongoDB
+const roundToTwo = (val) => {
+  if (typeof val !== 'number') return val;
+  return Math.round(val * 100) / 100;
+};
+
 const stockTransactionSchema = new mongoose.Schema({
   type: {
     type: String,
@@ -18,13 +24,14 @@ const stockTransactionSchema = new mongoose.Schema({
   pricePerUnit: {
     type: Number,
     required: true,
-    min: 0.01
+    min: 0.01,
+    set: roundToTwo
   },
   brokerage: {
     type: Number,
-    default: 0
-  },
-  notes: String
+    default: 0,
+    set: roundToTwo
+  }
 });
 
 const stockSchema = new mongoose.Schema({
@@ -50,25 +57,29 @@ const stockSchema = new mongoose.Schema({
   },
   currentPrice: {
     type: Number,
-    default: 0
+    default: 0,
+    set: roundToTwo
   },
   dayChange: {
     type: Number,
-    default: 0
+    default: 0,
+    set: roundToTwo
   },
   dayChangePercent: {
     type: Number,
-    default: 0
+    default: 0,
+    set: roundToTwo
   },
   targetPrice: {
-    type: Number
+    type: Number,
+    set: roundToTwo
   },
   stopLossPrice: {
-    type: Number
+    type: Number,
+    set: roundToTwo
   },
   lastPriceUpdate: Date,
-  transactions: [stockTransactionSchema],
-  notes: String
+  transactions: [stockTransactionSchema]
 }, {
   timestamps: true
 });

@@ -1,20 +1,8 @@
 const cron = require('node-cron');
 const SIP = require('../models/SIP');
 const Alert = require('../models/Alert');
-const User = require('../models/User');
 const logger = require('../utils/logger');
-const { sendEmail, renderEmail } = require('../utils/sendEmail');
-
-const sendAlertEmail = async (familyId, templateName, templateData, subject) => {
-  try {
-    const user = await User.findOne({ familyId });
-    if (!user || !user.email) return;
-    const html = await renderEmail(templateName, { ...templateData, userName: user.name }, subject);
-    await sendEmail({ email: user.email, subject, html });
-  } catch (err) {
-    logger.error('SipJob', `Failed to send alert email: ${err.message}`);
-  }
-};
+const { sendAlertEmail } = require('../utils/sendAlertEmail');
 
 function recalculateSipLedger(sip, navHistory) {
   if (!navHistory || navHistory.length === 0) return false;

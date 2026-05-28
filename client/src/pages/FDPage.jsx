@@ -18,7 +18,7 @@ export default function FDPage() {
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const [form, setForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' });
+  const [form, setForm] = useState({ bankName: '', memberId: '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '' });
   const [breakModal, setBreakModal] = useState({ show: false, fd: null, penaltyPercentage: 1, breakDate: new Date().toISOString().slice(0, 10), calculatedAmount: 0 });
   const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
   const navigate = useNavigate();
@@ -94,7 +94,7 @@ export default function FDPage() {
       const m = new Date(fd.maturityDate);
       days = Math.round((m - s) / (1000 * 60 * 60 * 24)).toString();
     }
-    setForm({ bankName: fd.bankName, memberId: fd.memberId?._id || fd.memberId, principalAmount: fd.principalAmount, interestRate: fd.interestRate, compounding: fd.compounding, startDate: fd.startDate?.slice(0, 10), durationDays: days, maturityDate: fd.maturityDate?.slice(0, 10), isAutoRenew: fd.isAutoRenew, nominee: fd.nominee || '', notes: fd.notes || '' });
+    setForm({ bankName: fd.bankName, memberId: fd.memberId?._id || fd.memberId, principalAmount: fd.principalAmount, interestRate: fd.interestRate, compounding: fd.compounding, startDate: fd.startDate?.slice(0, 10), durationDays: days, maturityDate: fd.maturityDate?.slice(0, 10), isAutoRenew: fd.isAutoRenew, nominee: fd.nominee || '' });
     setEditId(fd._id); setShowForm(true);
   };
 
@@ -137,7 +137,7 @@ export default function FDPage() {
     try {
       const { fd, calculatedAmount, breakDate, penaltyPercentage } = breakModal;
       const effectiveRate = Math.max(0, fd.interestRate - (parseFloat(penaltyPercentage) || 0));
-      await api.put(`/fds/${fd._id}`, { status: 'premature-closed', notes: `Broken prematurely on ${formatDate(breakDate)}. Effective Rate: ${effectiveRate}% (after ${penaltyPercentage}% penalty). Final Payout: ₹${Math.round(calculatedAmount).toLocaleString('en-IN')}` });
+      await api.put(`/fds/${fd._id}`, { status: 'premature-closed', closureReason: `Broken prematurely on ${formatDate(breakDate)}. Effective Rate: ${effectiveRate}% (after ${penaltyPercentage}% penalty). Final Payout: ₹${Math.round(calculatedAmount).toLocaleString('en-IN')}` });
       toast.success('FD marked as prematurely closed');
       setBreakModal({ ...breakModal, show: false });
       load();
@@ -153,7 +153,7 @@ export default function FDPage() {
       <div className="page-content animate-fade">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>All FDs ({fds.length})</h2>
-          <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditId(null); setForm({ bankName: '', memberId: members[0]?._id || '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' }); }}><Plus size={16} /> Add FD</button>
+          <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditId(null); setForm({ bankName: '', memberId: members[0]?._id || '', principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', maturityDate: '', isAutoRenew: false, nominee: '' }); }}><Plus size={16} /> Add FD</button>
         </div>
 
         {fds.length > 0 ? (
@@ -239,7 +239,7 @@ export default function FDPage() {
             </div>
           )}
         </>) : (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon">🏦</div><div className="empty-state-title">No Fixed Deposits yet</div><div className="empty-state-text">{members.length === 0 ? 'Add family members first, then come back to add FDs' : 'Track your FDs with automatic maturity calculations'}</div><button className="btn btn-primary" onClick={() => { if (members.length === 0) { toast.error('Add family members first!'); navigate('/members'); return; } setShowForm(true); setEditId(null); setForm({ bankName: '', memberId: members[0]._id, principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '', notes: '' }); }}>{members.length === 0 ? 'Add Members' : 'Add FD'}</button></div></div>
+          <div className="card"><div className="empty-state"><div className="empty-state-icon">🏦</div><div className="empty-state-title">No Fixed Deposits yet</div><div className="empty-state-text">{members.length === 0 ? 'Add family members first, then come back to add FDs' : 'Track your FDs with automatic maturity calculations'}</div><button className="btn btn-primary" onClick={() => { if (members.length === 0) { toast.error('Add family members first!'); navigate('/members'); return; } setShowForm(true); setEditId(null); setForm({ bankName: '', memberId: members[0]._id, principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '' }); }}>{members.length === 0 ? 'Add Members' : 'Add FD'}</button></div></div>
         )}
 
         {showForm && (

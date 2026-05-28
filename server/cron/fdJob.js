@@ -1,20 +1,8 @@
 const cron = require('node-cron');
 const FD = require('../models/FD');
 const Alert = require('../models/Alert');
-const User = require('../models/User');
 const logger = require('../utils/logger');
-const { sendEmail, renderEmail } = require('../utils/sendEmail');
-
-const sendAlertEmail = async (familyId, templateName, templateData, subject) => {
-  try {
-    const user = await User.findOne({ familyId });
-    if (!user || !user.email) return;
-    const html = await renderEmail(templateName, { ...templateData, userName: user.name }, subject);
-    await sendEmail({ email: user.email, subject, html });
-  } catch (err) {
-    logger.error('FdJob', `Failed to send FD email alert: ${err.message}`);
-  }
-};
+const { sendAlertEmail } = require('../utils/sendAlertEmail');
 
 const startFdJob = () => {
   cron.schedule('5 8 * * *', async () => {
