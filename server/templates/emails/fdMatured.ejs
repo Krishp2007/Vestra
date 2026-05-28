@@ -1,0 +1,60 @@
+<% 
+  var user = locals.userName || 'User';
+  var bank = locals.bankName || 'Bank';
+  var princ = locals.principalAmount || '0';
+  var matAmt = locals.maturityAmount || '0';
+  var rate = locals.interestRate || '0';
+  var matDate = locals.maturityDate || '';
+  var member = locals.memberName || '';
+%>
+<h2 style="color: #0f172a; font-size: 22px; font-weight: 700; margin-top: 0; margin-bottom: 12px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">🏦 FD Matured Successfully</h2>
+<p style="color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  Hello <strong><%= user %></strong>,<br>
+  The Fixed Deposit held at <strong><%= bank %></strong> for <strong><%= member %></strong> has officially reached its maturity date today!
+</p>
+
+<!-- Maturity Badge -->
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+  <tr>
+    <td align="center">
+      <div style="background-color: #eff6ff; display: inline-block; padding: 12px 24px; border-radius: 12px; border: 1px solid #bfdbfe;">
+        <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 700; color: #2563eb; letter-spacing: 0.5px;">
+          💰 Maturity Amount Ready: ₹<%= matAmt %>
+        </span>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #475569;">
+    <tr>
+      <td style="padding: 6px 0; font-weight: 600; width: 50%;">Bank</td>
+      <td style="padding: 6px 0; text-align: right;"><%= bank %></td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Depositor</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right;"><%= member %></td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Principal Invested</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right;">₹<%= princ %></td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Interest Rate</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right; color: #2563eb; font-weight: 700;"><%= rate %>%</td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Maturity Amount</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right; color: #059669; font-weight: 700; font-size: 14px;">₹<%= matAmt %></td>
+    </tr>
+    <tr>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; font-weight: 600;">Maturity Date</td>
+      <td style="padding: 6px 0; border-top: 1px solid #e2e8f0; text-align: right;"><%= matDate %></td>
+    </tr>
+  </table>
+</div>
+
+<p style="color: #64748b; font-size: 13px; text-align: center; margin-bottom: 0; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  Since this Fixed Deposit does not have auto-renewal enabled, its status has been marked as <strong>"Matured"</strong> in your portfolio. Please visit your bank account to verify deposit credit or manually renew it.
+</p>

@@ -50,10 +50,13 @@ const fdSchema = new mongoose.Schema({
     default: false
   },
   nominee: String,
-  notes: String
 }, {
   timestamps: true
 });
+
+// Highly optimized database indexes for fast background sweeps and UI searches
+fdSchema.index({ status: 1, maturityDate: 1 });
+fdSchema.index({ familyId: 1 });
 
 // Pre-save: calculate maturity amount if not provided
 fdSchema.pre('save', function() {

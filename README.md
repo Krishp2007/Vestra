@@ -1,12 +1,12 @@
-# 📊 Assets View — Family Investment Management & Analytics System
+# 📊 Vestra Vault — Consolidated Family Wealth Management & Analytics System
 
-> A premium, highly secure personal finance platform for families that aggregates, normalizes, and turns scattered investment data into clear, actionable, real-time analytics.
+> A premium, highly secure personal finance platform for families that aggregates, normalizes, and turns scattered investment data into clear, actionable, real-time analytics natively in a single consolidated service.
 
 ---
 
 ## 🔄 Core User Flow & Operations
 
-Assets View is designed to simplify how families manage, track, and optimize their investments. Here is the operational flow of how the system works and what it provides to you:
+Vestra Vault is designed to simplify how families manage, track, and optimize their investments. Everything is consolidated inside a single backend server that runs your API, database integration, background automation crons, and smart wealth calculations locally!
 
 ```mermaid
 flowchart TD
@@ -30,10 +30,10 @@ flowchart TD
         FD -->|Daily Cron Job| AlertGen[SIP Due & FD Maturity Alert Triggers]
     end
 
-    subgraph Analytics ["3. Intelligence & Reporting"]
-        Valuation --> PythonEngine[Flask Analytics Core]
-        AlertGen --> PythonEngine
-        PythonEngine -->|Data Modeling| Insights[CAGR Analysis & Asset Allocation Insights]
+    subgraph Analytics ["3. Native JS Intelligence"]
+        Valuation --> NativeEngine[Native JS Portfolio Engine]
+        AlertGen --> NativeEngine
+        NativeEngine -->|Calculates locally in <1ms| Insights[Smart Diversification & Asset Allocation Insights]
     end
 
     classDef default fill:#1e293b,stroke:#334155,stroke-width:2px,color:#f8fafc;
@@ -43,7 +43,7 @@ flowchart TD
 
 ---
 
-## 💡 What Assets View Provides
+## 💡 What Vestra Vault Provides
 
 ### 1. Unified Family Portfolios
 *   👨‍👩‍👧‍👦 **Multi-Member Tracking**: Map investments (SIPs, Stocks, Fixed Deposits) to specific family members under one consolidated dashboard.
@@ -65,19 +65,19 @@ flowchart TD
 
 ### Prerequisites
 - **Node.js** v18+
-- **Python** v3.9+
 - **MongoDB Atlas**
-- **Brevo Account** (for transactional verification emails)
+- **Brevo Account** (for transactional verification and wealth digest emails)
 
 ### 📁 Setup Environment Files (.env)
-Before launching the application, you need to configure **two distinct environmental files** (one for the backend, one for the frontend client).
+Vestra Vault is fully decoupled to allow easy production deployment. Configure your environment files:
 
 #### A. Backend Config (`server/.env`)
 Create `server/.env` inside the `server/` directory and configure the database connection, server port, and Brevo API credentials:
 ```env
 PORT=5000
-MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/your_db_name
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/your_db_name
 JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRE=30d
 NODE_ENV=development
 
 GOOGLE_CLIENT_ID=your_google_oauth_client_id_here
@@ -85,7 +85,7 @@ GOOGLE_CLIENT_ID=your_google_oauth_client_id_here
 # Transactional Email (Brevo REST API v3 HTTPS)
 BREVO_API_KEY=your-brevo-api-key
 FROM_EMAIL=your-verified-brevo-email@gmail.com
-FROM_NAME="Assets View"
+FROM_NAME="Vestra Vault"
 ```
 
 #### B. Frontend Config (`client/.env`)
@@ -99,11 +99,12 @@ VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id_here
 
 ## 🚀 Running the System Locally
 
-### 1. Launch the Server API Gateway (Express)
+### 1. Launch the Server API & Automation Engine (Express)
 ```bash
 cd server
+npm install
 node server.js
-# ✅ Running on http://localhost:5000
+# ✅ Server running on port 5000 with 24/7 background cron suites started!
 ```
 
 ### 2. Launch the Web Frontend Client (React)
@@ -111,23 +112,7 @@ node server.js
 cd client
 npm install
 npm run dev
-# ✅ Running on http://localhost:5173
-```
-
-### 3. Launch the Python Analytics Core (Flask)
-```bash
-cd analytics
-python -m venv venv
-
-# Activate venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-pip install -r requirements.txt
-python app.py
-# ✅ Running on http://localhost:5001
+# ✅ Web app running on http://localhost:5173
 ```
 
 ---
@@ -137,10 +122,9 @@ python app.py
 | Layer | Main Technologies |
 | :--- | :--- |
 | **Frontend Web** | React, Vite, Recharts, Lucide Icons, Zustand Store |
-| **Backend API Gateway** | Node.js, Express.js, Mongoose ODM, Node-cron, EJS Engine |
+| **Backend API Server** | Node.js, Express.js, Mongoose ODM, Node-cron, EJS Engine |
 | **Security & Hashing** | JWT (JSON Web Tokens), bcryptjs, Crypto Module |
 | **Transactional Mail Service** | Brevo Web Transactional API (Direct HTTPS) |
-| **Data modeling Engine** | Python, Flask REST API, pandas, numpy |
 | **Database** | MongoDB Atlas Cluster |
 
 ---
