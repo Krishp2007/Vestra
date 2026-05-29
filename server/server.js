@@ -37,6 +37,7 @@ app.use('/api/fds', require('./routes/fds'));
 app.use('/api/stocks', require('./routes/stocks'));
 app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/contact', require('./routes/contact'));
 
 // Health check
 app.get('/api/health', (req, res) => {

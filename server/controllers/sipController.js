@@ -1,8 +1,30 @@
+const https = require('https');
 const SIP = require('../models/SIP');
 const { recalculateSipLedger } = require('../cron/jobs');
 
-// @desc    Get all SIPs (optionally filtered by memberId)
-// @route   GET /api/sips
+// Robust native helper to bypass native fetch/undici DNS bugs on local machines
+const httpsGet = (url) => {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`Request failed with status code ${res.statusCode}`));
+        return;
+      }
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('Failed to parse JSON'));
+        }
+      });
+    }).on('error', (err) => {
+      reject(err);
+    });
+  });
+};
+
 exports.getSIPs = async (req, res) => {
   try {
     const query = { familyId: req.user.familyId };
@@ -13,8 +35,42 @@ exports.getSIPs = async (req, res) => {
       .populate('memberId', 'name avatar relation')
       .sort('-createdAt');
 
+    // On-Demand refresh check: if server was asleep or we are on localhost,
+    // sync active mutual fund NAVs if they haven't been updated today.
+    // Executed as a completely non-blocking, asynchronous background task!
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const sipsToUpdate = sips.filter(sip => 
+      sip.status === 'active' && 
+      sip.schemeCode && 
+      (!sip.updatedAt || sip.updatedAt < todayStart)
+    );
+
+    if (sipsToUpdate.length > 0) {
+      // Fire-and-forget background synchronization task
+      (async () => {
+        for (const sip of sipsToUpdate) {
+          try {
+            const data = await httpsGet(`https://api.mfapi.in/mf/${sip.schemeCode}`);
+            if (data && data.data && data.data.length > 0) {
+              const freshSip = await SIP.findById(sip._id);
+              if (freshSip) {
+                recalculateSipLedger(freshSip, data.data);
+                freshSip.updatedAt = new Date(); // Explicitly mark today's sync as done
+                await freshSip.save();
+              }
+            }
+          } catch (err) {
+            console.error(`Background on-demand SIP refresh failed for ${sip.fundName}:`, err.message);
+          }
+        }
+      })();
+    }
+
     res.json({ success: true, data: sips });
   } catch (error) {
+    console.error('Error fetching SIPs:', error);
     res.status(500).json({ message: 'Error fetching SIPs' });
   }
 };
@@ -51,10 +107,9 @@ exports.createSIP = async (req, res) => {
     const sip = await SIP.create(sipData);
     const populated = await SIP.findById(sip._id).populate('memberId', 'name avatar relation');
 
-    // Asynchronously backfill historical NAV and units immediately
+    // Asynchronously backfill historical NAV and units immediately using httpsGet
     if (sip.schemeCode) {
-      fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`)
-        .then(res => res.json())
+      httpsGet(`https://api.mfapi.in/mf/${sip.schemeCode}`)
         .then(async data => {
           if (data && data.data && data.data.length > 0) {
             const freshSip = await SIP.findById(sip._id);
@@ -86,10 +141,9 @@ exports.updateSIP = async (req, res) => {
 
     if (!sip) return res.status(404).json({ message: 'SIP not found' });
 
-    // Asynchronously update units & calculations immediately
+    // Asynchronously update units & calculations immediately using httpsGet
     if (sip.schemeCode) {
-      fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`)
-        .then(res => res.json())
+      httpsGet(`https://api.mfapi.in/mf/${sip.schemeCode}`)
         .then(async data => {
           if (data && data.data && data.data.length > 0) {
             const freshSip = await SIP.findById(sip._id);

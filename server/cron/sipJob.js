@@ -1,8 +1,32 @@
 const cron = require('node-cron');
+const https = require('https');
 const SIP = require('../models/SIP');
 const Alert = require('../models/Alert');
 const logger = require('../utils/logger');
 const { sendAlertEmail } = require('../utils/sendAlertEmail');
+
+// Robust native helper to bypass native fetch/undici DNS bugs on local machines
+const httpsGet = (url) => {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`Request failed with status code ${res.statusCode}`));
+        return;
+      }
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('Failed to parse JSON'));
+        }
+      });
+    }).on('error', (err) => {
+      reject(err);
+    });
+  });
+};
 
 function recalculateSipLedger(sip, navHistory) {
   if (!navHistory || navHistory.length === 0) return false;
@@ -133,14 +157,8 @@ const startSipJob = () => {
         try {
           if (!sip.schemeCode || sip.schemeCode === 'undefined' || sip.schemeCode === 'null') continue;
           
-          const res = await fetch(`https://api.mfapi.in/mf/${sip.schemeCode}`);
-          if (!res.ok) continue;
-          
-          const contentType = res.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) continue;
-
-          const data = await res.json();
-          if (data.data && data.data.length > 0) {
+          const data = await httpsGet(`https://api.mfapi.in/mf/${sip.schemeCode}`);
+          if (data && data.data && data.data.length > 0) {
             recalculateSipLedger(sip, data.data);
             await sip.save();
             updatedCount++;

@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import useStore from './store/useStore';
 import api from './utils/api';
 import AppLayout from './components/layout/AppLayout';
+import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import SIPPage from './pages/SIPPage';
@@ -19,7 +20,7 @@ import SettingsPage from './pages/SettingsPage';
 
 function ProtectedRoute({ children }) {
   const { token } = useStore();
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token) return <Navigate to="/home" replace />;
   return children;
 }
 
@@ -43,7 +44,9 @@ export default function App() {
         error: { iconTheme: { primary: '#f43f5e', secondary: '#fff' } },
       }} />
       <Routes>
+        <Route path="/home" element={<HomePage />} />
         <Route path="/login" element={<AuthPage />} />
+        <Route path="/signup" element={<AuthPage />} />
         <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="sips" element={<SIPPage />} />
@@ -56,7 +59,7 @@ export default function App() {
           <Route path="add" element={<QuickAddPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </BrowserRouter>
     </GoogleOAuthProvider>

@@ -18,6 +18,10 @@ const sendEmail = async (options) => {
     htmlContent: options.html
   };
 
+  if (options.replyTo) {
+    payload.replyTo = options.replyTo;
+  }
+
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {

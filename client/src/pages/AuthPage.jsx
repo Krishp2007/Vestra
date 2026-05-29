@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import useStore from '../store/useStore';
 import api from '../utils/api';
@@ -14,8 +14,23 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [googleLoaded, setGoogleLoaded] = useState(false);
-  const { setAuth } = useStore();
+  const { token, setAuth } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // If already authenticated, redirect to dashboard immediately
+  useEffect(() => {
+    if (token) navigate('/', { replace: true });
+  }, [token, navigate]);
+
+  // Deep-link: set view to signup if URL path is /signup, otherwise default to login
+  useEffect(() => {
+    if (location.pathname === '/signup') {
+      setView('signup');
+    } else if (location.pathname === '/login') {
+      setView('login');
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     if (window.google?.accounts?.id) {
@@ -384,7 +399,9 @@ export default function AuthPage() {
             <>
               {view === 'login' ? "Don't have an account? " : 'Already have an account? '}
               <button 
-                onClick={() => setView(view === 'login' ? 'signup' : 'login')} 
+                onClick={() => {
+                  navigate(view === 'login' ? '/signup' : '/login');
+                }} 
                 style={{ 
                   background: 'none', 
                   border: 'none', 
@@ -403,7 +420,7 @@ export default function AuthPage() {
             </>
           ) : (
             <button 
-              onClick={() => setView('login')} 
+              onClick={() => { navigate('/login'); }} 
               style={{ background: 'none', border: 'none', color: '#a855f7', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}
             >
               Back to Login
