@@ -54,7 +54,8 @@ export default function Dashboard() {
         holdings.push({ id: f._id, name: f.bankName, type: 'fd', invested: f.principalAmount, currentValue: f.maturityAmount || f.principalAmount, returns: ret, data: f });
       });
 
-      holdings.sort((a, b) => Math.abs(b.returns) - Math.abs(a.returns));
+      // Sort holdings by current valuation (highest currentValue first) for proper portfolio weight display
+      holdings.sort((a, b) => b.currentValue - a.currentValue);
       setTopHoldings(holdings.slice(0, 6));
     } catch (err) {
       console.error('Dashboard load error:', err);
@@ -111,7 +112,7 @@ export default function Dashboard() {
                 <span className="skeleton" style={{ width: '70px', height: '14px', marginTop: '6px' }} />
               ) : (
                 <div className={`stat-change ${isPositive ? 'up' : 'down'}`} style={{ marginTop: 0 }}>
-                  {isPositive ? <ArrowUpRight size={14}/> : <ArrowDownRight size={14}/>}
+                  {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                   {formatPercent(summary.overallReturns || 0)}
                 </div>
               )}
@@ -136,7 +137,7 @@ export default function Dashboard() {
               {loading ? '📊' : (isPositive ? '📊' : '📉')}
             </div>
             <div className="stat-label">Total Returns</div>
-            <div className="stat-value" style={{color: !loading && isPositive ? 'var(--success)' : 'var(--danger)'}}>
+            <div className="stat-value" style={{ color: !loading && isPositive ? 'var(--success)' : 'var(--danger)' }}>
               {loading ? <span className="skeleton" style={{ width: '120px', height: '24px', margin: '4px 0' }} /> : `${isPositive ? '+' : '-'}${formatCurrency(Math.abs(summary.absoluteReturns || 0))}`}
             </div>
           </div>
@@ -155,10 +156,10 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="quick-actions-grid">
           {[
-            { icon: <TrendingUp size={18}/>, label: 'Add Stock', path: '/add?tab=stock', color: '#10b981' },
-            { icon: <Landmark size={18}/>, label: 'Add FD', path: '/add?tab=fd', color: '#f59e0b' },
-            { icon: <BarChart3 size={18}/>, label: 'Add SIP', path: '/add?tab=sip', color: '#6366f1' },
-            { icon: <Eye size={18}/>, label: 'Insights', path: '/insights', color: '#8b5cf6' },
+            { icon: <TrendingUp size={18} />, label: 'Add Stock', path: '/add?tab=stock', color: '#10b981' },
+            { icon: <Landmark size={18} />, label: 'Add FD', path: '/add?tab=fd', color: '#f59e0b' },
+            { icon: <BarChart3 size={18} />, label: 'Add SIP', path: '/add?tab=sip', color: '#6366f1' },
+            { icon: <Eye size={18} />, label: 'Insights', path: '/insights', color: '#8b5cf6' },
           ].map(action => (
             <button
               key={action.label}
@@ -201,16 +202,16 @@ export default function Dashboard() {
                     >
                       {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const item = payload[0].payload;
                           return (
-                            <div style={{ 
-                              background: 'rgba(23, 23, 37, 0.95)', 
-                              border: '1px solid var(--border-color)', 
-                              padding: '12px 16px', 
-                              borderRadius: '12px', 
+                            <div style={{
+                              background: 'rgba(23, 23, 37, 0.95)',
+                              border: '1px solid var(--border-color)',
+                              padding: '12px 16px',
+                              borderRadius: '12px',
                               boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
                               backdropFilter: 'blur(8px)',
                               display: 'flex',
@@ -231,19 +232,19 @@ export default function Dashboard() {
                           );
                         }
                         return null;
-                      }} 
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                <div style={{flex:1}}>
+                <div style={{ flex: 1 }}>
                   {pieData.map((item, i) => (
                     <div
                       key={item.name}
-                      style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px', padding: '6px 8px', borderRadius: 8}}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '6px 8px', borderRadius: 8 }}
                     >
-                      <span style={{width:10,height:10,borderRadius:3,background:PIE_COLORS[i],flexShrink:0}} />
-                      <span style={{fontSize:13,color:'var(--text-secondary)',flex:1}}>{item.name}</span>
-                      <span style={{fontSize:14,fontWeight:600}}>{item.value}%</span>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i], flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1 }}>{item.name}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{item.value}%</span>
                     </div>
                   ))}
                 </div>
@@ -281,29 +282,29 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={monthlyData.slice(-chartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{fill:'var(--text-muted)', fontSize:11}} 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
                     dy={10}
                   />
-                  <YAxis 
-                    tick={{fill:'var(--text-muted)', fontSize:11}} 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tickFormatter={v => v >= 100000 ? `${v/100000}L` : v >= 1000 ? `${v/1000}K` : v} 
+                  <YAxis
+                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={v => v >= 100000 ? `${v / 100000}L` : v >= 1000 ? `${v / 1000}K` : v}
                   />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: 'rgba(255,255,255,0.05)', radius: 4 }}
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         return (
-                          <div className="custom-tooltip" style={{ 
-                            background: 'rgba(23, 23, 37, 0.95)', 
-                            border: '1px solid var(--border-color)', 
-                            padding: '12px', 
-                            borderRadius: '12px', 
+                          <div className="custom-tooltip" style={{
+                            background: 'rgba(23, 23, 37, 0.95)',
+                            border: '1px solid var(--border-color)',
+                            padding: '12px',
+                            borderRadius: '12px',
                             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
                             backdropFilter: 'blur(8px)'
                           }}>
@@ -325,7 +326,7 @@ export default function Dashboard() {
                         );
                       }
                       return null;
-                    }} 
+                    }}
                   />
                   <Bar dataKey="sip" name="SIP" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={20} />
                   <Bar dataKey="fd" name="FD" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={20} />
@@ -368,7 +369,7 @@ export default function Dashboard() {
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 14, fontWeight: 700 }}>{formatCurrency(h.currentValue)}</div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: isUp ? 'var(--success)' : 'var(--danger)', display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
-                        {isUp ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
+                        {isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                         {isUp ? '+' : ''}{h.returns.toFixed(1)}%
                       </div>
                     </div>
@@ -381,7 +382,7 @@ export default function Dashboard() {
         )}
 
         {/* Family Members - Enhanced */}
-        <div className="card" style={{marginBottom:'28px'}}>
+        <div className="card" style={{ marginBottom: '28px' }}>
           <div className="card-header">
             <div><div className="card-title">Family Members</div><div className="card-subtitle">Click a member to view their portfolio</div></div>
             <button className="btn btn-secondary btn-sm" onClick={() => navigate('/members')}>Manage</button>
@@ -406,17 +407,17 @@ export default function Dashboard() {
                     <div className="member-avatar">{m.member.avatar || '👤'}</div>
                     <div className="member-name">{m.member.name}</div>
                     <div className="member-relation">{m.member.relation}</div>
-                    <div style={{marginTop:'12px',fontSize:18,fontWeight:700}}>{formatCurrency(m.totalInvested || 0)}</div>
-                    <div style={{fontSize:11,color:'var(--text-muted)'}}>Total Invested</div>
-                    <div style={{ 
-                      fontSize: 12, fontWeight: 600, marginTop: 6, 
+                    <div style={{ marginTop: '12px', fontSize: 18, fontWeight: 700 }}>{formatCurrency(m.totalInvested || 0)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Total Invested</div>
+                    <div style={{
+                      fontSize: 12, fontWeight: 600, marginTop: 6,
                       color: mIsPos ? 'var(--success)' : 'var(--danger)',
                       display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center'
                     }}>
-                      {mIsPos ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
+                      {mIsPos ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                       {mIsPos ? '+' : ''}{memberReturn.toFixed(1)}% returns
                     </div>
-                    <div style={{fontSize:11,color:'var(--text-muted)',marginTop:6}}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                       {m.sipCount} SIPs · {m.fdCount} FDs · {m.stockCount} Stocks
                     </div>
                   </div>
@@ -461,10 +462,10 @@ export default function Dashboard() {
       </div>
 
       {/* Asset Detail Modal */}
-      <AssetDetailsModal 
-        asset={viewingAsset} 
-        type={viewingAssetType} 
-        onClose={() => { setViewingAsset(null); setViewingAssetType(null); }} 
+      <AssetDetailsModal
+        asset={viewingAsset}
+        type={viewingAssetType}
+        onClose={() => { setViewingAsset(null); setViewingAssetType(null); }}
       />
     </>
   );

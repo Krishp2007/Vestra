@@ -193,7 +193,7 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Monthly Investment</div><div style={{ fontSize: 15, fontWeight: 600 }}>{formatCurrency(asset.amountPerMonth)}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>SIP Date</div><div style={{ fontSize: 15, fontWeight: 600 }}>Day {asset.sipDate}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Invested</div><div style={{ fontSize: 15, fontWeight: 600 }}>{formatCurrency(asset.totalInvested)}</div></div>
-                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Value</div><div style={{ fontSize: 15, fontWeight: 600, color: 'var(--success)' }}>{formatCurrency(asset.currentValue)}</div></div>
+                 <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current Value</div><div style={{ fontSize: 15, fontWeight: 600, color: (asset.currentValue >= asset.totalInvested) ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(asset.currentValue)}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Total Units</div><div style={{ fontSize: 15, fontWeight: 500 }}>{asset.totalUnits || '-'}</div></div>
                  <div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Start Date</div><div style={{ fontSize: 15, fontWeight: 500 }}>{formatDate(asset.startDate)}</div></div>
               </div>

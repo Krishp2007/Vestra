@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
@@ -52,6 +52,52 @@ export default function MemberDashboard() {
     finally { setLoading(false); }
   };
 
+  const insights = useMemo(() => {
+    if (!data) return null;
+
+    const sipInvested = data.sip?.invested || 0;
+    const sipValue = data.sip?.currentValue || 0;
+    const sipReturns = sipValue - sipInvested;
+
+    const stockInvested = data.stocks?.invested || 0;
+    const stockValue = data.stocks?.currentValue || 0;
+    const stockReturns = stockValue - stockInvested;
+
+    const fdReturns = memberFds.reduce((sum, fd) => {
+      const interest = (fd.maturityAmount || fd.principalAmount) - fd.principalAmount;
+      return sum + Math.max(0, interest);
+    }, 0);
+
+    const assets = [
+      { name: 'Mutual Funds', type: 'sip', returns: sipReturns, icon: '💎', invested: sipInvested },
+      { name: 'Stocks', type: 'stocks', returns: stockReturns, icon: '📈', invested: stockInvested },
+      { name: 'Fixed Deposits', type: 'fd', returns: fdReturns, icon: '🏦', invested: memberFds.reduce((sum, f) => sum + f.principalAmount, 0) }
+    ];
+
+    const activeAssets = assets.filter(a => a.invested > 0);
+    if (activeAssets.length === 0) return null;
+
+    let bestAsset = null;
+    let worstAsset = null;
+
+    activeAssets.forEach(asset => {
+      if (!bestAsset || asset.returns > bestAsset.returns) {
+        bestAsset = asset;
+      }
+      if (!worstAsset || asset.returns < worstAsset.returns) {
+        worstAsset = asset;
+      }
+    });
+
+    return {
+      sipReturns,
+      stockReturns,
+      fdReturns,
+      bestAsset: bestAsset && bestAsset.returns > 0 ? bestAsset : null,
+      worstAsset: worstAsset && worstAsset.returns < 0 ? worstAsset : null
+    };
+  }, [data, memberFds]);
+
   const openDetail = (asset, type) => {
     setViewingAsset(asset);
     setViewingAssetType(type);
@@ -99,10 +145,16 @@ export default function MemberDashboard() {
 
         {/* Stats */}
         <div className="stats-grid">
-          <div className={`stat-card ${isPos?'success':'danger'}`}>
-            <div className="stat-label">Portfolio Value</div>
-            <div className="stat-value">{formatCurrency(s.totalCurrentValue)}</div>
-            <div className={`stat-change ${isPos?'up':'down'}`}>{isPos?<ArrowUpRight size={14}/>:<ArrowDownRight size={14}/>}{formatPercent(s.totalReturns)}</div>
+          <div className="stat-card">
+            <div className="stat-icon purple">💰</div>
+            <div className="stat-label">Total Invested</div>
+            <div className="stat-value" style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+              {formatCurrency(s.totalInvested || 0)}
+              <span style={{ fontSize: 13, fontWeight: 600, color: isPos ? 'var(--success)' : 'var(--danger)' }}>
+                ({isPos ? '+' : ''}{formatCurrency(s.absoluteReturns || 0)})
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Active Capital Outlay</div>
           </div>
           <div className="stat-card" onClick={() => scrollToTab('sips')} style={{ cursor: 'pointer' }}>
             <div className="stat-icon green">💎</div>
@@ -123,6 +175,68 @@ export default function MemberDashboard() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Value: {formatCurrency(data.stocks?.currentValue || 0)}</div>
           </div>
         </div>
+
+        {/* Performance Insights */}
+        {insights && (insights.bestAsset || insights.worstAsset) && (
+          <div className="card animate-fade" style={{ marginBottom: 28 }}>
+            <div className="card-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
+              <div>
+                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>💡 Performance Insights</div>
+                <div className="card-subtitle">Real-time asset class profitability analysis</div>
+              </div>
+            </div>
+            <div className="performance-insights-grid">
+              {/* Asset Profitability Breakdown */}
+              <div className="performance-insights-col">
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Asset Profit/Loss Breakdown</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                  {[
+                    { name: 'Mutual Funds', val: insights.sipReturns, icon: '💎', color: insights.sipReturns >= 0 ? 'var(--success)' : 'var(--danger)', invested: data.sip?.invested || 0 },
+                    { name: 'Stocks', val: insights.stockReturns, icon: '📈', color: insights.stockReturns >= 0 ? 'var(--success)' : 'var(--danger)', invested: data.stocks?.invested || 0 },
+                    { name: 'Fixed Deposits', val: insights.fdReturns, icon: '🏦', color: 'var(--success)', invested: memberFds.reduce((sum, f) => sum + f.principalAmount, 0) }
+                  ].map(a => {
+                    if (a.invested === 0) return null;
+                    return (
+                      <div key={a.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
+                          <span>{a.icon}</span> {a.name}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: a.color }}>
+                          {a.val >= 0 ? '+' : ''}{formatCurrency(a.val)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Dynamic Summary Statement */}
+              <div className="performance-insights-statement">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  ✨ Wealth Intelligence Statement
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                  {insights.bestAsset && insights.worstAsset && (
+                    <>
+                      Your investments are performing best in <strong>{insights.bestAsset.name}</strong>, yielding a total gain of <strong style={{ color: 'var(--success)' }}>{formatCurrency(insights.bestAsset.returns)}</strong>. 
+                      Conversely, your greatest drag on returns is in <strong>{insights.worstAsset.name}</strong>, with a net loss of <strong style={{ color: 'var(--danger)' }}>{formatCurrency(insights.worstAsset.returns)}</strong>.
+                    </>
+                  )}
+                  {insights.bestAsset && !insights.worstAsset && (
+                    <>
+                      Fantastic job! All your invested asset classes are profitable. Your strongest absolute performance comes from <strong>{insights.bestAsset.name}</strong>, netting <strong style={{ color: 'var(--success)' }}>{formatCurrency(insights.bestAsset.returns)}</strong> in gains.
+                    </>
+                  )}
+                  {!insights.bestAsset && insights.worstAsset && (
+                    <>
+                      Your portfolio is experiencing downward pressure. Your biggest absolute contraction is in <strong>{insights.worstAsset.name}</strong>, showing a loss of <strong style={{ color: 'var(--danger)' }}>{formatCurrency(insights.worstAsset.returns)}</strong>. Consider rebalancing into fixed income.
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Charts */}
         <div className="charts-grid">

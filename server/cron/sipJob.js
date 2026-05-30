@@ -42,28 +42,69 @@ function recalculateSipLedger(sip, navHistory) {
 
   const startDate = new Date(sip.startDate);
   const now = new Date();
-  
-  let current = new Date(startDate.getFullYear(), startDate.getMonth(), sip.sipDate || 1);
   const expectedDates = [];
+
+  // 1. If start date is on a different day than sipDate, count it as the first payment (e.g. initial activation purchase)
+  if (startDate.getDate() !== sip.sipDate) {
+    expectedDates.push(new Date(startDate));
+  }
+
+  // 2. Add regular monthly schedules starting from the start month's sipDate
+  let current = new Date(startDate.getFullYear(), startDate.getMonth(), sip.sipDate || 1);
   let endLimit = now;
   if (sip.status !== 'active') {
     endLimit = sip.endDate ? new Date(sip.endDate) : new Date(sip.updatedAt || now);
   }
 
   while (current <= endLimit) {
-    expectedDates.push(new Date(current));
+    // Avoid duplicate check if start date aligns exactly
+    if (current.getTime() !== startDate.getTime()) {
+      expectedDates.push(new Date(current));
+    }
     current.setMonth(current.getMonth() + 1);
   }
 
   let modified = false;
 
-  expectedDates.forEach(expectedDate => {
-    const startOfMonth = new Date(expectedDate.getFullYear(), expectedDate.getMonth(), 1);
-    const endOfMonth = new Date(expectedDate.getFullYear(), expectedDate.getMonth() + 1, 0);
+  // 3. Smart Mandate Setup Delay Detection:
+  // If the user manually specified a non-zero totalInvested, we calculate the max payments they actually made.
+  // If expectedDates is larger than this limit and contains both the startDate and the first month's regular sipDate,
+  // it means the regular payment in the first month was skipped due to mandate setup delay. We remove it!
+  if (sip.totalInvested && sip.totalInvested > 0 && sip.amountPerMonth > 0) {
+    const maxAllowedPayments = Math.round(sip.totalInvested / sip.amountPerMonth);
+    if (expectedDates.length > maxAllowedPayments) {
+      if (expectedDates.length >= 2 && expectedDates[0].getTime() === startDate.getTime()) {
+        const regularFirstMonthDate = expectedDates[1];
+        expectedDates.splice(1, 1); // Prune July 25th from expected schedules
 
+        // Also proactively prune any existing transaction in sip.payments that falls on this month's regular date
+        if (sip.payments) {
+          const startOfPruneMonth = new Date(regularFirstMonthDate.getFullYear(), regularFirstMonthDate.getMonth(), 1);
+          const endOfPruneMonth = new Date(regularFirstMonthDate.getFullYear(), regularFirstMonthDate.getMonth() + 1, 0);
+          
+          sip.payments = sip.payments.filter(p => {
+            const d = new Date(p.date);
+            if (d >= startOfPruneMonth && d <= endOfPruneMonth) {
+              const diffTime = Math.abs(d.getTime() - startDate.getTime());
+              const diffDays = diffTime / (1000 * 60 * 60 * 24);
+              if (diffDays > 5) {
+                modified = true;
+                return false; // Prune skipped July 25th regular payment
+              }
+            }
+            return true;
+          });
+        }
+      }
+    }
+  }
+
+  expectedDates.forEach(expectedDate => {
     let existingPayment = sip.payments?.find(p => {
       const d = new Date(p.date);
-      return d >= startOfMonth && d <= endOfMonth;
+      const diffTime = Math.abs(d.getTime() - expectedDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 5;
     });
 
     if (!existingPayment) {
@@ -136,10 +177,18 @@ function recalculateSipLedger(sip, navHistory) {
   const calculatedTotalUnits = completedPayments.reduce((sum, p) => sum + (p.units || 0), 0);
 
   const latestNav = parseFloat(navHistory[0].nav);
-  const calculatedCurrentValue = calculatedTotalUnits * latestNav;
 
-  sip.totalInvested = calculatedTotalInvested;
-  sip.totalUnits = Math.round(calculatedTotalUnits * 10000) / 10000;
+  // PRESERVE user manual inputs if they explicitly typed non-zero totalInvested/totalUnits.
+  // Otherwise, default to the calculated ledger sums.
+  if (!sip.totalInvested || sip.totalInvested === 0) {
+    sip.totalInvested = calculatedTotalInvested;
+  }
+  if (!sip.totalUnits || sip.totalUnits === 0) {
+    sip.totalUnits = Math.round(calculatedTotalUnits * 10000) / 10000;
+  }
+
+  // Value is ALWAYS calculated from the active units
+  const calculatedCurrentValue = sip.totalUnits * latestNav;
   sip.currentValue = Math.round(calculatedCurrentValue * 100) / 100;
 
   return true;

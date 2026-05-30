@@ -789,5 +789,49 @@ input, select, textarea, button { font-family: inherit; }
   }
 }
 
+/* ===== PERFORMANCE INSIGHTS MOBILE CENTERING ===== */
+.performance-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 20px;
+  width: 100%;
+}
+.performance-insights-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+.performance-insights-statement {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 20px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px dashed rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-lg);
+  gap: 12px;
+  width: 100%;
+}
+@media (max-width: 768px) {
+  .card {
+    padding: 16px !important;
+  }
+  .performance-insights-grid {
+    grid-template-columns: 1fr !important;
+    padding: 10px 5px !important;
+    text-align: center;
+  }
+  .performance-insights-col {
+    align-items: center !important;
+  }
+  .performance-insights-statement {
+    align-items: center !important;
+    text-align: center !important;
+    padding: 12px 15px !important;
+  }
+}
+
 
 
