@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
-import { formatCurrency, formatDate, getStatusColor } from '../utils/helpers';
+import { formatCurrency, formatDate, getStatusColor, calculateFdMaturityAmount } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Edit, X, AlertTriangle } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
@@ -37,13 +37,9 @@ export default function FDPage() {
       if (bDate > start) {
         const days = (bDate - start) / (1000 * 60 * 60 * 24);
         const years = days / 365.25;
-        let n = 4;
         const comp = (breakModal.fd.compounding || 'quarterly').toLowerCase();
-        if (comp.includes('month')) n = 12;
-        if (comp.includes('year') || comp.includes('annual')) n = 1;
-        const effectiveN = comp.includes('maturity') ? (1 / years) : n;
 
-        const amount = breakModal.fd.principalAmount * Math.pow(1 + (effectiveRate / 100) / effectiveN, effectiveN * years);
+        const amount = calculateFdMaturityAmount(breakModal.fd.principalAmount, effectiveRate, comp, years);
         setBreakModal(m => ({ ...m, calculatedAmount: Math.round(amount) }));
       } else {
         setBreakModal(m => ({ ...m, calculatedAmount: breakModal.fd.principalAmount }));

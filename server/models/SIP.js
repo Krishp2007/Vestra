@@ -90,6 +90,8 @@ const sipSchema = new mongoose.Schema({
   timestamps: true
 });
 
+sipSchema.index({ familyId: 1 });
+
 // Virtual: returns (gain/loss)
 sipSchema.virtual('returns').get(function() {
   if (this.totalInvested === 0) return 0;

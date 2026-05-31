@@ -122,3 +122,28 @@ export const INDIAN_BANKS = [
   'HDFC Ltd',
   'Post Office (NSC/KVP)',
 ];
+
+export const calculateFdMaturityAmount = (principal, interestRate, compoundingOption, years) => {
+  const principalVal = parseFloat(principal);
+  const rateVal = parseFloat(interestRate);
+  const yearsVal = parseFloat(years);
+  if (isNaN(principalVal) || isNaN(rateVal) || isNaN(yearsVal) || yearsVal <= 0) return principalVal || 0;
+
+  let n = 4; // Default quarterly compounding
+  const comp = (compoundingOption || 'quarterly').toLowerCase();
+  if (comp.includes('month')) n = 12;
+  else if (comp.includes('half')) n = 2;
+  else if (comp.includes('year') || comp.includes('annual')) n = 1;
+  
+  const effectiveN = comp.includes('maturity') ? (1 / yearsVal) : n;
+  const amount = principalVal * Math.pow(1 + (rateVal / 100) / effectiveN, effectiveN * yearsVal);
+  return amount;
+};
+
+export const calculateCagr = (currentValue, investedValue, diffDays) => {
+  const current = parseFloat(currentValue);
+  const invested = parseFloat(investedValue);
+  const days = parseFloat(diffDays);
+  if (isNaN(current) || isNaN(invested) || isNaN(days) || invested <= 0 || days <= 0) return 0;
+  return (Math.pow(current / invested, 365.25 / days) - 1) * 100;
+};

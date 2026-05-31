@@ -33,4 +33,6 @@ const familyMemberSchema = new mongoose.Schema({
   timestamps: true
 });
 
+familyMemberSchema.index({ familyId: 1 });
+
 module.exports = mongoose.model('FamilyMember', familyMemberSchema);

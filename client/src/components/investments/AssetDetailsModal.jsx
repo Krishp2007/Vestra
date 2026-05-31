@@ -1,5 +1,5 @@
 import { X, Activity } from 'lucide-react';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatDate, calculateFdMaturityAmount, calculateCagr } from '../../utils/helpers';
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from 'recharts';
 import api from '../../utils/api';
@@ -19,12 +19,8 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
       if (now > start) {
         const daysRun = (now - start) / (1000 * 60 * 60 * 24);
         const yearsRun = daysRun / 365.25;
-        let n = 4;
         const comp = (asset.compoundingFrequency || asset.compounding || 'quarterly').toLowerCase();
-        if (comp.includes('month')) n = 12;
-        if (comp.includes('year') || comp.includes('annual')) n = 1;
-        const effectiveN = comp.includes('maturity') ? (1/yearsRun) : n;
-        val = asset.principalAmount * Math.pow(1 + (asset.interestRate/100)/effectiveN, effectiveN * yearsRun);
+        val = calculateFdMaturityAmount(asset.principalAmount, asset.interestRate, comp, yearsRun);
         if (asset.maturityAmount && val > asset.maturityAmount) val = asset.maturityAmount;
       }
     }
@@ -79,7 +75,7 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
     let cagr = 0;
     if (diffDays >= 30 && asset.totalInvested > 0) {
       const currentValue = displayStockPrice * asset.holdingQuantity;
-      cagr = (Math.pow(currentValue / asset.totalInvested, 365.25 / diffDays) - 1) * 100;
+      cagr = calculateCagr(currentValue, asset.totalInvested, diffDays);
     }
     
     return { text, cagr };
@@ -151,8 +147,7 @@ export default function AssetDetailsModal({ asset, type, onClose }) {
             if (i === points && asset.maturityAmount) {
                val = asset.maturityAmount;
             } else if (years > 0) {
-               const effectiveN = comp.includes('maturity') ? (1/years) : n;
-               val = asset.principalAmount * Math.pow(1 + (asset.interestRate/100)/effectiveN, effectiveN * years);
+               val = calculateFdMaturityAmount(asset.principalAmount, asset.interestRate, comp, years);
             }
 
             curve.push({

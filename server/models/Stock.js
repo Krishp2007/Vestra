@@ -84,6 +84,8 @@ const stockSchema = new mongoose.Schema({
   timestamps: true
 });
 
+stockSchema.index({ familyId: 1 });
+
 // Virtual: current holdings (buy qty - sell qty)
 stockSchema.virtual('holdingQuantity').get(function() {
   return this.transactions.reduce((total, txn) => {
