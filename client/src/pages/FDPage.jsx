@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
-import { formatCurrency, formatDate, getStatusColor, COMPOUNDING_OPTIONS, INDIAN_BANKS } from '../utils/helpers';
+import { formatCurrency, formatDate, getStatusColor } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Edit, X, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit, X, AlertTriangle } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
-import SearchSelect from '../components/SearchSelect';
+import FdForm from '../components/forms/FdForm';
+import Pagination from '../components/shared/Pagination';
+import EmptyState from '../components/shared/EmptyState';
 
 export default function FDPage() {
   const [fds, setFds] = useState([]);
@@ -39,7 +41,7 @@ export default function FDPage() {
         const comp = (breakModal.fd.compounding || 'quarterly').toLowerCase();
         if (comp.includes('month')) n = 12;
         if (comp.includes('year') || comp.includes('annual')) n = 1;
-        const effectiveN = comp.includes('maturity') ? (1/years) : n;
+        const effectiveN = comp.includes('maturity') ? (1 / years) : n;
 
         const amount = breakModal.fd.principalAmount * Math.pow(1 + (effectiveRate / 100) / effectiveN, effectiveN * years);
         setBreakModal(m => ({ ...m, calculatedAmount: Math.round(amount) }));
@@ -49,38 +51,13 @@ export default function FDPage() {
     }
   }, [breakModal.penaltyPercentage, breakModal.breakDate, breakModal.show, breakModal.fd]);
 
-  useEffect(() => {
-    if (form.startDate && form.durationDays) {
-      const start = new Date(form.startDate);
-      const days = parseInt(form.durationDays, 10);
-      if (!isNaN(days) && days > 0) {
-        const maturity = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
-        const yyyy = maturity.getFullYear();
-        const mm = String(maturity.getMonth() + 1).padStart(2, '0');
-        const dd = String(maturity.getDate()).padStart(2, '0');
-        const formattedDate = `${yyyy}-${mm}-${dd}`;
-        if (formattedDate !== form.maturityDate) {
-          setForm(prev => ({ ...prev, maturityDate: formattedDate }));
-        }
-      }
-    }
-  }, [form.startDate, form.durationDays]);
-  const load = async () => {
-    try {
-      const [f, m] = await Promise.all([api.get('/fds'), api.get('/members')]);
-      setFds(f.data.data); setMembers(m.data.data);
-    } catch (e) { toast.error('Error loading FDs'); }
-    finally { setLoading(false); }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (parseFloat(form.interestRate) > 20) {
+  const handleFdSubmit = async (formData) => {
+    if (parseFloat(formData.interestRate) > 20) {
       toast.error('Invalid Interest Rate: Cannot exceed 20%');
       return;
     }
     try {
-      const submitForm = { ...form, memberId: form.memberId || (members.length > 0 ? members[0]._id : '') };
+      const submitForm = { ...formData, memberId: formData.memberId || (members.length > 0 ? members[0]._id : '') };
       if (editId) { await api.put(`/fds/${editId}`, submitForm); toast.success('FD updated!'); }
       else { await api.post('/fds', submitForm); toast.success('FD added!'); }
       setShowForm(false); setEditId(null); load();
@@ -94,17 +71,37 @@ export default function FDPage() {
       const m = new Date(fd.maturityDate);
       days = Math.round((m - s) / (1000 * 60 * 60 * 24)).toString();
     }
-    setForm({ bankName: fd.bankName, memberId: fd.memberId?._id || fd.memberId, principalAmount: fd.principalAmount, interestRate: fd.interestRate, compounding: fd.compounding, startDate: fd.startDate?.slice(0, 10), durationDays: days, maturityDate: fd.maturityDate?.slice(0, 10), isAutoRenew: fd.isAutoRenew, nominee: fd.nominee || '' });
-    setEditId(fd._id); setShowForm(true);
+    setForm({
+      bankName: fd.bankName,
+      memberId: fd.memberId?._id || fd.memberId,
+      principalAmount: fd.principalAmount,
+      interestRate: fd.interestRate,
+      compounding: fd.compounding,
+      startDate: fd.startDate?.slice(0, 10),
+      durationDays: days,
+      maturityDate: fd.maturityDate?.slice(0, 10),
+      isAutoRenew: fd.isAutoRenew,
+      nominee: fd.nominee || ''
+    });
+    setEditId(fd._id);
+    setShowForm(true);
+  };
+
+  const load = async () => {
+    try {
+      const [f, m] = await Promise.all([api.get('/fds'), api.get('/members')]);
+      setFds(f.data.data); setMembers(m.data.data);
+    } catch (e) { toast.error('Error loading FDs'); }
+    finally { setLoading(false); }
   };
 
   const handleDelete = async () => {
     if (!deleteModal.id) return;
-    try { 
-      await api.delete(`/fds/${deleteModal.id}`); 
-      toast.success('FD deleted'); 
+    try {
+      await api.delete(`/fds/${deleteModal.id}`);
+      toast.success('FD deleted');
       setDeleteModal({ show: false, id: null });
-      load(); 
+      load();
     }
     catch (e) { toast.error('Error'); }
   };
@@ -159,123 +156,108 @@ export default function FDPage() {
         {fds.length > 0 ? (
           <>
             {/* Desktop Table Layout */}
-          <div className="card table-responsive desktop-table-container" style={{ padding: 0 }}>
-            <table className="data-table"><thead><tr><th>Bank</th><th>Member</th><th>Principal</th><th>Rate</th><th>Maturity Amt</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>{fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
-                return (
-                  <tr key={fd._id} onClick={() => setViewingAsset(fd)} style={{ cursor: 'pointer' }} className="hover-row">
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{fd.bankName}<br /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fd.compounding} compounding</span></td>
-                    <td>{fd.memberId?.avatar} {fd.memberId?.name || '-'}</td>
-                    <td>{formatCurrency(fd.principalAmount)}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--success)' }}>{fd.interestRate}%</td>
-                    <td style={{ fontWeight: 600 }}>{formatCurrency(fd.maturityAmount)}</td>
-                    <td>{getStatusBadge(fd)}</td>
-                    <td onClick={e => e.stopPropagation()}><div style={{ display: 'flex', gap: 4 }}>
-                      {fd.status === 'active' && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openBreakModal(fd)} title="Break FD"><AlertTriangle size={14} color="var(--danger)" /></button>}
-                      <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>
-                      <button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => setDeleteModal({show:true, id:fd._id})}><Trash2 size={14} /></button>
-                    </div></td>
-                  </tr>
-                )
-              })}</tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards Layout */}
-          <div className="mobile-asset-cards">
-            {fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
-              return (
-                <div key={fd._id} className="mobile-asset-card" onClick={() => setViewingAsset(fd)}>
-                  <div className="mobile-asset-card-header">
-                    <div>
-                      <h4 className="mobile-asset-card-title">{fd.bankName}</h4>
-                      <span className="mobile-asset-card-subtitle">{fd.compounding} compounding</span>
-                    </div>
-                    <div>{getStatusBadge(fd)}</div>
-                  </div>
-                  <div className="mobile-asset-card-body">
-                    <div className="mobile-asset-card-field">
-                      <span className="mobile-asset-card-label">Member</span>
-                      <span className="mobile-asset-card-value">{fd.memberId?.avatar} {fd.memberId?.name || '-'}</span>
-                    </div>
-                    <div className="mobile-asset-card-field">
-                      <span className="mobile-asset-card-label">Principal</span>
-                      <span className="mobile-asset-card-value">{formatCurrency(fd.principalAmount)}</span>
-                    </div>
-                    <div className="mobile-asset-card-field">
-                      <span className="mobile-asset-card-label">Interest Rate</span>
-                      <span className="mobile-asset-card-value" style={{ color: 'var(--success)', fontWeight: 700 }}>{fd.interestRate}%</span>
-                    </div>
-                    <div className="mobile-asset-card-field">
-                      <span className="mobile-asset-card-label">Maturity Amt</span>
-                      <span className="mobile-asset-card-value" style={{ fontWeight: 700 }}>{formatCurrency(fd.maturityAmount)}</span>
-                    </div>
-                  </div>
-                  <div className="mobile-asset-card-footer">
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to view details</span>
-                    <div className="mobile-asset-card-actions" onClick={e => e.stopPropagation()}>
-                      {fd.status === 'active' && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openBreakModal(fd)} title="Break FD"><AlertTriangle size={14} color="var(--danger)" /></button>}
-                      <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>
-                      <button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => setDeleteModal({show:true, id:fd._id})}><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pagination Controls */}
-          {fds.length > itemsPerPage && (
-            <div className="card" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', marginTop: '16px', background: 'var(--bg-card)', gap: '16px' }}>
-              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ padding: '6px' }}>
-                <ChevronLeft size={16} />
-              </button>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center', flex: 1 }}>
-                Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, fds.length)} of {fds.length}
-              </span>
-              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === Math.ceil(fds.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)} style={{ padding: '6px' }}>
-                <ChevronRight size={16} />
-              </button>
+            <div className="card table-responsive desktop-table-container" style={{ padding: 0 }}>
+              <table className="data-table"><thead><tr><th>Bank</th><th>Member</th><th>Principal</th><th>Rate</th><th>Maturity Amt</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>{fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
+                  return (
+                    <tr key={fd._id} onClick={() => setViewingAsset(fd)} style={{ cursor: 'pointer' }} className="hover-row">
+                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{fd.bankName}<br /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fd.compounding} compounding</span></td>
+                      <td>{fd.memberId?.avatar} {fd.memberId?.name || '-'}</td>
+                      <td>{formatCurrency(fd.principalAmount)}</td>
+                      <td style={{ fontWeight: 600, color: 'var(--success)' }}>{fd.interestRate}%</td>
+                      <td style={{ fontWeight: 600 }}>{formatCurrency(fd.maturityAmount)}</td>
+                      <td>{getStatusBadge(fd)}</td>
+                      <td onClick={e => e.stopPropagation()}><div style={{ display: 'flex', gap: 4 }}>
+                        {fd.status === 'active' && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openBreakModal(fd)} title="Break FD"><AlertTriangle size={14} color="var(--danger)" /></button>}
+                        <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>
+                        <button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => setDeleteModal({ show: true, id: fd._id })}><Trash2 size={14} /></button>
+                      </div></td>
+                    </tr>
+                  )
+                })}</tbody>
+              </table>
             </div>
-          )}
-        </>) : (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon">🏦</div><div className="empty-state-title">No Fixed Deposits yet</div><div className="empty-state-text">{members.length === 0 ? 'Add family members first, then come back to add FDs' : 'Track your FDs with automatic maturity calculations'}</div><button className="btn btn-primary" onClick={() => { if (members.length === 0) { toast.error('Add family members first!'); navigate('/members'); return; } setShowForm(true); setEditId(null); setForm({ bankName: '', memberId: members[0]._id, principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '' }); }}>{members.length === 0 ? 'Add Members' : 'Add FD'}</button></div></div>
+
+            {/* Mobile Cards Layout */}
+            <div className="mobile-asset-cards">
+              {fds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(fd => {
+                return (
+                  <div key={fd._id} className="mobile-asset-card" onClick={() => setViewingAsset(fd)}>
+                    <div className="mobile-asset-card-header">
+                      <div>
+                        <h4 className="mobile-asset-card-title">{fd.bankName}</h4>
+                        <span className="mobile-asset-card-subtitle">{fd.compounding} compounding</span>
+                      </div>
+                      <div>{getStatusBadge(fd)}</div>
+                    </div>
+                    <div className="mobile-asset-card-body">
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Member</span>
+                        <span className="mobile-asset-card-value">{fd.memberId?.avatar} {fd.memberId?.name || '-'}</span>
+                      </div>
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Principal</span>
+                        <span className="mobile-asset-card-value">{formatCurrency(fd.principalAmount)}</span>
+                      </div>
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Interest Rate</span>
+                        <span className="mobile-asset-card-value" style={{ color: 'var(--success)', fontWeight: 700 }}>{fd.interestRate}%</span>
+                      </div>
+                      <div className="mobile-asset-card-field">
+                        <span className="mobile-asset-card-label">Maturity Amt</span>
+                        <span className="mobile-asset-card-value" style={{ fontWeight: 700 }}>{formatCurrency(fd.maturityAmount)}</span>
+                      </div>
+                    </div>
+                    <div className="mobile-asset-card-footer">
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to view details</span>
+                      <div className="mobile-asset-card-actions" onClick={e => e.stopPropagation()}>
+                        {fd.status === 'active' && <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openBreakModal(fd)} title="Break FD"><AlertTriangle size={14} color="var(--danger)" /></button>}
+                        <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => handleEdit(fd)}><Edit size={14} /></button>
+                        <button className="btn btn-ghost btn-icon btn-sm" title="Delete" onClick={() => setDeleteModal({ show: true, id: fd._id })}><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalItems={fds.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          </>) : (
+          <EmptyState
+            icon="🏦"
+            title="No Fixed Deposits yet"
+            text={members.length === 0 ? 'Add family members first, then come back to add FDs' : 'Track your FDs with automatic maturity calculations'}
+            buttonText={members.length === 0 ? 'Add Members' : 'Add FD'}
+            onButtonClick={() => {
+              if (members.length === 0) {
+                toast.error('Add family members first!');
+                navigate('/members');
+                return;
+              }
+              setShowForm(true);
+              setEditId(null);
+              setForm({ bankName: '', memberId: members[0]._id, principalAmount: '', interestRate: '', compounding: 'quarterly', startDate: '', durationDays: '', maturityDate: '', isAutoRenew: false, nominee: '' });
+            }}
+          />
         )}
 
         {showForm && (
           <div className="modal-overlay" onClick={() => setShowForm(false)}>
             <div className="modal" onClick={e => e.stopPropagation()}>
               <div className="modal-header"><h2 className="modal-title">{editId ? 'Edit' : 'Add'} Fixed Deposit</h2><button className="modal-close" onClick={() => setShowForm(false)}><X size={16} /></button></div>
-              <form onSubmit={handleSubmit}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Bank Name *</label>
-                    <SearchSelect 
-                      options={INDIAN_BANKS} 
-                      value={form.bankName} 
-                      onChange={val => setForm({...form, bankName: val})} 
-                      placeholder="Search bank..." 
-                      required 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Family Member *</label>
-                    <SearchSelect 
-                      options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} 
-                      value={form.memberId} 
-                      onChange={val => setForm({...form, memberId: val})} 
-                      placeholder="Select member..." 
-                      searchKey="searchLabel"
-                      required 
-                    />
-                  </div>
-                </div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Principal (₹) *</label><input className="form-input" type="number" value={form.principalAmount} onChange={e => setForm({ ...form, principalAmount: e.target.value })} required min="1000" /></div><div className="form-group"><label className="form-label">Interest Rate (%) *</label><input className="form-input" type="number" step="0.01" value={form.interestRate} onChange={e => setForm({ ...form, interestRate: e.target.value })} required /></div></div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Start Date *</label><input className="form-input" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required /></div><div className="form-group"><label className="form-label">Duration (Days) *</label><input className="form-input" type="number" placeholder="e.g. 444" value={form.durationDays} onChange={e => setForm({ ...form, durationDays: e.target.value })} required /></div></div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Compounding</label><SearchSelect options={COMPOUNDING_OPTIONS} value={form.compounding} onChange={val => setForm({...form, compounding: val})} placeholder="Compounding" /></div><div className="form-group"><label className="form-label">Nominee</label><input className="form-input" value={form.nominee} onChange={e => setForm({ ...form, nominee: e.target.value })} /></div></div>
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={form.isAutoRenew} onChange={e => setForm({ ...form, isAutoRenew: e.target.checked })} /><label className="form-label" style={{ margin: 0 }}>Auto-renew on maturity</label></div>
-                <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button><button type="submit" className="btn btn-primary">{editId ? 'Update' : 'Add'} FD</button></div>
-              </form>
+              <FdForm
+                initialData={form}
+                members={members}
+                saving={false}
+                onSubmit={handleFdSubmit}
+                onCancel={() => setShowForm(false)}
+                submitLabel={editId ? 'Update FD' : 'Add FD'}
+              />
             </div>
           </div>
         )}
@@ -291,7 +273,7 @@ export default function FDPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-group"><label className="form-label">Break Date *</label><input className="form-input" type="date" value={breakModal.breakDate} onChange={e => setBreakModal({ ...breakModal, breakDate: e.target.value })} required /></div>
-                  <div className="form-group"><label className="form-label">Penalty Percentage (%) *</label><input className="form-input" type="number" step="0.01" min="0.01" value={breakModal.penaltyPercentage} onChange={e => setBreakModal({...breakModal, penaltyPercentage: e.target.value})} required /></div>
+                  <div className="form-group"><label className="form-label">Penalty Percentage (%) *</label><input className="form-input" type="number" step="0.01" min="0.01" value={breakModal.penaltyPercentage} onChange={e => setBreakModal({ ...breakModal, penaltyPercentage: e.target.value })} required /></div>
                 </div>
                 <div className="form-group"><label className="form-label">Calculated Payout Amount (₹)</label><input className="form-input" type="number" value={breakModal.calculatedAmount} readOnly style={{ background: 'var(--bg-secondary)', color: 'var(--success)', fontWeight: 600 }} /></div>
                 <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setBreakModal({ ...breakModal, show: false })}>Cancel</button><button type="submit" className="btn btn-danger">Confirm Break FD</button></div>
@@ -301,11 +283,11 @@ export default function FDPage() {
         )}
 
         {deleteModal.show && (
-          <DeleteConfirmModal 
-            title="Delete Fixed Deposit" 
-            message="Are you sure you want to permanently delete this FD? This action cannot be undone." 
-            onConfirm={handleDelete} 
-            onCancel={() => setDeleteModal({ show: false, id: null })} 
+          <DeleteConfirmModal
+            title="Delete Fixed Deposit"
+            message="Are you sure you want to permanently delete this FD? This action cannot be undone."
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteModal({ show: false, id: null })}
           />
         )}
 

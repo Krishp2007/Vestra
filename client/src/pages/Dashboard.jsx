@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatPercent } from '../utils/helpers';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import AssetAllocationPie from '../components/shared/AssetAllocationPie';
+import MonthlyTrendChart from '../components/shared/MonthlyTrendChart';
 import { Users, TrendingUp, Landmark, BarChart3, ArrowUpRight, ArrowDownRight, ChevronRight, Eye, Zap, Clock, Award } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 
@@ -192,65 +193,8 @@ export default function Dashboard() {
                 <span className="skeleton" style={{ width: '100%', height: '140px', borderRadius: '50%' }} />
                 <span className="skeleton" style={{ width: '60%', height: '16px' }} />
               </div>
-            ) : pieData.length > 0 ? (
-              <div className="pie-container">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-                      paddingAngle={4} dataKey="value"
-                    >
-                      {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
-                    </Pie>
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const item = payload[0].payload;
-                          return (
-                            <div style={{
-                              background: 'rgba(23, 23, 37, 0.95)',
-                              border: '1px solid var(--border-color)',
-                              padding: '12px 16px',
-                              borderRadius: '12px',
-                              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-                              backdropFilter: 'blur(8px)',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '4px'
-                            }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.fill }} />
-                                <span style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 600 }}>{item.name}</span>
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                Share: <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{item.value}%</span>
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                Invested: <span style={{ fontWeight: 700, color: 'var(--success)' }}>{formatCurrency(item.invested || 0)}</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div style={{ flex: 1 }}>
-                  {pieData.map((item, i) => (
-                    <div
-                      key={item.name}
-                      style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '6px 8px', borderRadius: 8 }}
-                    >
-                      <span style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i], flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1 }}>{item.name}</span>
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>{item.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             ) : (
-              <div className="empty-state"><div className="empty-state-icon">📊</div><div className="empty-state-text">Add investments to see allocation</div></div>
+              <AssetAllocationPie pieData={pieData} innerRadius={55} outerRadius={85} height={200} />
             )}
           </div>
 
@@ -278,63 +222,8 @@ export default function Dashboard() {
               <div style={{ padding: '20px 24px' }}>
                 <span className="skeleton" style={{ width: '100%', height: '200px', borderRadius: 8 }} />
               </div>
-            ) : monthlyData.slice(-chartRange).some(m => m.total > 0) ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={monthlyData.slice(-chartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    dy={10}
-                  />
-                  <YAxis
-                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={v => v >= 100000 ? `${v / 100000}L` : v >= 1000 ? `${v / 1000}K` : v}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.05)', radius: 4 }}
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="custom-tooltip" style={{
-                            background: 'rgba(23, 23, 37, 0.95)',
-                            border: '1px solid var(--border-color)',
-                            padding: '12px',
-                            borderRadius: '12px',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-                            backdropFilter: 'blur(8px)'
-                          }}>
-                            <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</p>
-                            {payload.map((entry, index) => (
-                              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: index === payload.length - 1 ? 0 : '4px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: entry.fill }} />
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', flex: 1 }}>{entry.name}:</span>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(entry.value)}</span>
-                              </div>
-                            ))}
-                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Total:</span>
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
-                                {formatCurrency(payload.reduce((acc, curr) => acc + curr.value, 0))}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar dataKey="sip" name="SIP" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={20} />
-                  <Bar dataKey="fd" name="FD" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={20} />
-                  <Bar dataKey="stocks" name="Stocks" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
             ) : (
-              <div className="empty-state"><div className="empty-state-icon">📈</div><div className="empty-state-text">Investment data will appear here</div></div>
+              <MonthlyTrendChart monthlyData={monthlyData} chartRange={chartRange} setChartRange={setChartRange} height={250} />
             )}
           </div>
         </div>

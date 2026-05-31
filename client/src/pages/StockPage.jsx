@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
-import { formatCurrency, formatDate, EXCHANGES } from '../utils/helpers';
+import { formatCurrency, formatDate } from '../utils/helpers';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, X, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, X, Bell } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
-import SearchSelect from '../components/SearchSelect';
+import StockForm from '../components/forms/StockForm';
+import Pagination from '../components/shared/Pagination';
+import EmptyState from '../components/shared/EmptyState';
 
 export default function StockPage() {
   const [stocks, setStocks] = useState([]);
@@ -18,7 +20,6 @@ export default function StockPage() {
   const itemsPerPage = 5;
   const [form, setForm] = useState({ symbol:'', memberId:'', exchange:'NSE', type:'buy', date:'', quantity:'', pricePerUnit:'', brokerage:0 });
   const [priceLoading, setPriceLoading] = useState({});
-  const [suggestions, setSuggestions] = useState([]);
   const [alertModal, setAlertModal] = useState({ show: false, stock: null, targetPrice: '', stopLossPrice: '', activeTab: 'target' });
   const [deleteModal, setDeleteModal] = useState({ show: false, id: null });
 
@@ -97,44 +98,27 @@ export default function StockPage() {
     finally { setLoading(false); }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleStockSubmit = async (formData) => {
     try {
-      const selectedMemberId = form.memberId || (members.length > 0 ? members[0]._id : '');
-      const sym = form.symbol.toUpperCase();
+      const selectedMemberId = formData.memberId || (members.length > 0 ? members[0]._id : '');
+      const sym = formData.symbol.toUpperCase();
       
-      if (form.type === 'sell') {
+      if (formData.type === 'sell') {
         const existing = stocks.find(s => s.symbol === sym && s.memberId?._id === selectedMemberId);
         const holding = existing ? (existing.holdingQuantity || 0) : 0;
-        if (Number(form.quantity) > holding) {
-          toast.error(`You only hold ${holding} shares of ${sym}! You cannot sell ${form.quantity}.`);
+        if (Number(formData.quantity) > holding) {
+          toast.error(`You only hold ${holding} shares of ${sym}! You cannot sell ${formData.quantity}.`);
           return;
         }
       }
 
       await api.post('/stocks', {
-        symbol: sym, memberId: selectedMemberId, exchange: form.exchange,
-        transactions: [{ type: form.type, date: form.date, quantity: Number(form.quantity), pricePerUnit: Number(form.pricePerUnit), brokerage: Number(form.brokerage || 0) }]
+        symbol: sym, memberId: selectedMemberId, exchange: formData.exchange,
+        transactions: [{ type: formData.type, date: formData.date, quantity: Number(formData.quantity), pricePerUnit: Number(formData.pricePerUnit), brokerage: Number(formData.brokerage || 0) }]
       });
       toast.success('Transaction added!');
       setShowForm(false); load();
     } catch(e) { toast.error(e.response?.data?.message || 'Error'); }
-  };
-
-  const handleSymbolSearch = async (query) => {
-    setForm({...form, symbol: query.toUpperCase()});
-    if (query.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    try {
-      const res = await api.get(`/stocks/search/${query}`);
-      if (res.data.success && res.data.quotes) {
-        setSuggestions(res.data.quotes);
-      }
-    } catch (e) {
-      // ignore
-    }
   };
 
   const handleDelete = async () => {
@@ -260,44 +244,42 @@ export default function StockPage() {
             })}
           </div>
 
-          {/* Pagination Controls */}
-          {stocks.length > itemsPerPage && (
-            <div className="card" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', marginTop: '16px', background: 'var(--bg-card)', gap: '16px' }}>
-              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ padding: '6px' }}>
-                <ChevronLeft size={16} />
-              </button>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, textAlign: 'center', flex: 1 }}>
-                Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, stocks.length)} of {stocks.length}
-              </span>
-              <button className="btn btn-secondary btn-sm btn-icon" disabled={currentPage === Math.ceil(stocks.length / itemsPerPage)} onClick={() => setCurrentPage(p => p + 1)} style={{ padding: '6px' }}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          )}
-        </>) : (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon">📉</div><div className="empty-state-title">No stocks yet</div><div className="empty-state-text">{members.length === 0 ? 'Add family members first, then come back to add stocks' : 'Add buy/sell transactions to track your stock portfolio'}</div><button className="btn btn-primary" onClick={() => { if (members.length === 0) { toast.error('Add family members first!'); navigate('/members'); return; } setShowForm(true); setForm({ symbol:'', memberId:members[0]._id, exchange:'NSE', type:'buy', date:'', quantity:'', pricePerUnit:'', brokerage:0 }); }}>{members.length === 0 ? 'Add Members' : 'Add Stock'}</button></div></div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={stocks.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          </>) : (
+          <EmptyState
+            icon="📉"
+            title="No stocks yet"
+            text={members.length === 0 ? 'Add family members first, then come back to add stocks' : 'Add buy/sell transactions to track your stock portfolio'}
+            buttonText={members.length === 0 ? 'Add Members' : 'Add Stock'}
+            onButtonClick={() => {
+              if (members.length === 0) {
+                toast.error('Add family members first!');
+                navigate('/members');
+                return;
+              }
+              setShowForm(true);
+              setForm({ symbol:'', memberId:members[0]._id, exchange:'NSE', type:'buy', date:'', quantity:'', pricePerUnit:'', brokerage:0 });
+            }}
+          />
         )}
 
         {showForm && (
           <div className="modal-overlay" onClick={()=>setShowForm(false)}>
             <div className="modal" onClick={e=>e.stopPropagation()}>
               <div className="modal-header"><h2 className="modal-title">Add Stock Transaction</h2><button className="modal-close" onClick={()=>setShowForm(false)}><X size={16}/></button></div>
-              <form onSubmit={handleSubmit}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Stock Symbol *</label>
-                    <input className="form-input" list="stock-suggestions" value={form.symbol} onChange={e=>handleSymbolSearch(e.target.value)} required placeholder="Search symbol or name..." autoComplete="off"/>
-                    <datalist id="stock-suggestions">
-                      {suggestions.map((s, i) => <option key={i} value={s.symbol.replace('.NS', '').replace('.BO', '')}>{s.shortname} ({s.exchDisp})</option>)}
-                    </datalist>
-                  </div>
-                  <div className="form-group"><label className="form-label">Exchange</label><SearchSelect options={EXCHANGES} value={form.exchange} onChange={val => setForm({...form, exchange: val})} placeholder="Exchange" /></div>
-                </div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Member *</label><SearchSelect options={members.map(m => ({ value: m._id, label: `${m.avatar} ${m.name}`, searchLabel: m.name }))} value={form.memberId} onChange={val => setForm({...form, memberId: val})} placeholder="Select member..." searchKey="searchLabel" required /></div><div className="form-group"><label className="form-label">Type</label><SearchSelect options={[{value:'buy',label:'Buy'},{value:'sell',label:'Sell'}]} value={form.type} onChange={val => setForm({...form, type: val})} placeholder="Type" /></div></div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Date *</label><input className="form-input" type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} required/></div><div className="form-group"><label className="form-label">Quantity *</label><input className="form-input" type="number" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})} required min="1"/></div></div>
-                <div className="form-row"><div className="form-group"><label className="form-label">Price per Unit (₹) *</label><input className="form-input" type="number" step="0.01" value={form.pricePerUnit} onChange={e=>setForm({...form,pricePerUnit:e.target.value})} required/></div><div className="form-group"><label className="form-label">Brokerage (₹)</label><input className="form-input" type="number" value={form.brokerage} onChange={e=>setForm({...form,brokerage:e.target.value})}/></div></div>
-                <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={()=>setShowForm(false)}>Cancel</button><button type="submit" className="btn btn-primary">Add Transaction</button></div>
-              </form>
+              <StockForm
+                initialData={form}
+                members={members}
+                saving={false}
+                onSubmit={handleStockSubmit}
+                onCancel={()=>setShowForm(false)}
+                submitLabel="Add Transaction"
+              />
             </div>
           </div>
         )}

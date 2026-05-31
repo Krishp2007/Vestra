@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency, formatPercent, formatDate } from '../utils/helpers';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import AssetAllocationPie from '../components/shared/AssetAllocationPie';
+import MonthlyTrendChart from '../components/shared/MonthlyTrendChart';
+import PerformanceInsightsCard from '../components/shared/PerformanceInsightsCard';
 import { ArrowLeft, ArrowUpRight, ArrowDownRight, ChevronRight, TrendingUp, Landmark, BarChart3, Clock } from 'lucide-react';
 import AssetDetailsModal from '../components/investments/AssetDetailsModal';
 
@@ -177,66 +179,14 @@ export default function MemberDashboard() {
         </div>
 
         {/* Performance Insights */}
-        {insights && (insights.bestAsset || insights.worstAsset) && (
-          <div className="card animate-fade" style={{ marginBottom: 28 }}>
-            <div className="card-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
-              <div>
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>💡 Performance Insights</div>
-                <div className="card-subtitle">Real-time asset class profitability analysis</div>
-              </div>
-            </div>
-            <div className="performance-insights-grid">
-              {/* Asset Profitability Breakdown */}
-              <div className="performance-insights-col">
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Asset Profit/Loss Breakdown</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                  {[
-                    { name: 'Mutual Funds', val: insights.sipReturns, icon: '💎', color: insights.sipReturns >= 0 ? 'var(--success)' : 'var(--danger)', invested: data.sip?.invested || 0 },
-                    { name: 'Stocks', val: insights.stockReturns, icon: '📈', color: insights.stockReturns >= 0 ? 'var(--success)' : 'var(--danger)', invested: data.stocks?.invested || 0 },
-                    { name: 'Fixed Deposits', val: insights.fdReturns, icon: '🏦', color: 'var(--success)', invested: memberFds.reduce((sum, f) => sum + f.principalAmount, 0) }
-                  ].map(a => {
-                    if (a.invested === 0) return null;
-                    return (
-                      <div key={a.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-                          <span>{a.icon}</span> {a.name}
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: a.color }}>
-                          {a.val >= 0 ? '+' : ''}{formatCurrency(a.val)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Dynamic Summary Statement */}
-              <div className="performance-insights-statement">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  ✨ Wealth Intelligence Statement
-                </div>
-                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                  {insights.bestAsset && insights.worstAsset && (
-                    <>
-                      Your investments are performing best in <strong>{insights.bestAsset.name}</strong>, yielding a total gain of <strong style={{ color: 'var(--success)' }}>{formatCurrency(insights.bestAsset.returns)}</strong>. 
-                      Conversely, your greatest drag on returns is in <strong>{insights.worstAsset.name}</strong>, with a net loss of <strong style={{ color: 'var(--danger)' }}>{formatCurrency(insights.worstAsset.returns)}</strong>.
-                    </>
-                  )}
-                  {insights.bestAsset && !insights.worstAsset && (
-                    <>
-                      Fantastic job! All your invested asset classes are profitable. Your strongest absolute performance comes from <strong>{insights.bestAsset.name}</strong>, netting <strong style={{ color: 'var(--success)' }}>{formatCurrency(insights.bestAsset.returns)}</strong> in gains.
-                    </>
-                  )}
-                  {!insights.bestAsset && insights.worstAsset && (
-                    <>
-                      Your portfolio is experiencing downward pressure. Your biggest absolute contraction is in <strong>{insights.worstAsset.name}</strong>, showing a loss of <strong style={{ color: 'var(--danger)' }}>{formatCurrency(insights.worstAsset.returns)}</strong>. Consider rebalancing into fixed income.
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <PerformanceInsightsCard
+          insights={insights}
+          sipInvested={data.sip?.invested || 0}
+          stockInvested={data.stocks?.invested || 0}
+          fdInvested={memberFds.reduce((sum, f) => sum + f.principalAmount, 0)}
+          title="Member Portfolio Performance Insights"
+          subtitle="Real-time asset class profitability analysis"
+        />
 
         {/* Charts */}
         <div className="charts-grid">
@@ -244,58 +194,13 @@ export default function MemberDashboard() {
             <div className="card-header">
               <div><div className="card-title">Asset Allocation</div><div className="card-subtitle">Portfolio split by type</div></div>
             </div>
-            {pieData.length > 0 ? (
-              <div className="pie-container">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
-                      {pieData.map((_,i)=><Cell key={i} fill={PIE_COLORS[i]}/>)}
-                    </Pie>
-                    <Tooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const item = payload[0].payload;
-                          return (
-                            <div style={{ 
-                              background: 'rgba(23, 23, 37, 0.95)', 
-                              border: '1px solid var(--border-color)', 
-                              padding: '12px 16px', 
-                              borderRadius: '12px', 
-                              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-                              backdropFilter: 'blur(8px)',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '4px'
-                            }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.fill }} />
-                                <span style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 600 }}>{item.name}</span>
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                Share: <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{item.value}%</span>
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                Invested: <span style={{ fontWeight: 700, color: 'var(--success)' }}>{formatCurrency(item.invested || 0)}</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }} 
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div style={{flex:1}}>
-                  {pieData.map((item, i) => (
-                    <div key={item.name} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px', padding: '6px 8px', borderRadius: 8}}>
-                      <span style={{width:10,height:10,borderRadius:3,background:PIE_COLORS[i],flexShrink:0}} />
-                      <span style={{fontSize:13,color:'var(--text-secondary)',flex:1}}>{item.name}</span>
-                      <span style={{fontSize:14,fontWeight:600}}>{item.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : <div className="empty-state" style={{padding:40}}><p style={{color:'var(--text-muted)'}}>No data yet</p></div>}
+            <AssetAllocationPie
+              pieData={pieData}
+              innerRadius={50}
+              outerRadius={80}
+              height={200}
+              emptyState={<div className="empty-state" style={{padding:40}}><p style={{color:'var(--text-muted)'}}>No data yet</p></div>}
+            />
           </div>
 
           <div className="card">
@@ -317,51 +222,13 @@ export default function MemberDashboard() {
                 ))}
               </div>
             </div>
-            {data.monthlyData?.slice(-memberChartRange).some(m=>m.total>0) ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data.monthlyData.slice(-memberChartRange)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false}/>
-                  <XAxis dataKey="month" tick={{fill:'var(--text-muted)',fontSize:11}} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{fill:'var(--text-muted)',fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v=>v>=100000?`${v/100000}L`:v>=1000?`${v/1000}K`:v}/>
-                  <Tooltip 
-                    cursor={{ fill: 'rgba(255,255,255,0.05)', radius: 4 }}
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div style={{ 
-                            background: 'rgba(23, 23, 37, 0.95)', 
-                            border: '1px solid var(--border-color)', 
-                            padding: '12px', 
-                            borderRadius: '12px', 
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-                            backdropFilter: 'blur(8px)'
-                          }}>
-                            <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</p>
-                            {payload.map((entry, index) => (
-                              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: index === payload.length - 1 ? 0 : '4px' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: entry.fill }} />
-                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', flex: 1 }}>{entry.name}:</span>
-                                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{formatCurrency(entry.value)}</span>
-                              </div>
-                            ))}
-                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Total:</span>
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
-                                {formatCurrency(payload.reduce((acc, curr) => acc + curr.value, 0))}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }} 
-                  />
-                  <Bar dataKey="sip" name="SIP" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={20} />
-                  <Bar dataKey="fd" name="FD" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={20} />
-                  <Bar dataKey="stocks" name="Stocks" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <div className="empty-state" style={{padding:40}}><p style={{color:'var(--text-muted)'}}>No data yet</p></div>}
+            <MonthlyTrendChart
+              monthlyData={data.monthlyData}
+              chartRange={memberChartRange}
+              setChartRange={setMemberChartRange}
+              height={200}
+              emptyState={<div className="empty-state" style={{padding:40}}><p style={{color:'var(--text-muted)'}}>No data yet</p></div>}
+            />
           </div>
         </div>
 
@@ -441,7 +308,7 @@ export default function MemberDashboard() {
                   </div>
                 );
               }) : (
-                <div className="empty-state" style={{ padding: 40 }}><div className="empty-state-icon">📈</div><div className="empty-state-text">No stocks for this member</div><button className="btn btn-primary btn-sm" onClick={() => navigate('/stocks')}>Add Stock</button></div>
+                <div className="empty-state" style={{ padding: 40 }}><div className="empty-state-icon">📈</div><div className="empty-state-text">No stocks for this member</div><button className="btn btn-primary btn-sm" onClick={() => navigate(`/add?tab=stock&memberId=${memberId}`)}>Add Stock</button></div>
               )}
             </div>
           )}
@@ -479,7 +346,7 @@ export default function MemberDashboard() {
                   </div>
                 );
               }) : (
-                <div className="empty-state" style={{ padding: 40 }}><div className="empty-state-icon">💎</div><div className="empty-state-text">No SIPs for this member</div><button className="btn btn-primary btn-sm" onClick={() => navigate('/sips')}>Add SIP</button></div>
+                <div className="empty-state" style={{ padding: 40 }}><div className="empty-state-icon">💎</div><div className="empty-state-text">No SIPs for this member</div><button className="btn btn-primary btn-sm" onClick={() => navigate(`/add?tab=sip&memberId=${memberId}`)}>Add SIP</button></div>
               )}
             </div>
           )}
@@ -517,7 +384,7 @@ export default function MemberDashboard() {
                   </div>
                 );
               }) : (
-                <div className="empty-state" style={{ padding: 40 }}><div className="empty-state-icon">🏦</div><div className="empty-state-text">No FDs for this member</div><button className="btn btn-primary btn-sm" onClick={() => navigate('/fds')}>Add FD</button></div>
+                <div className="empty-state" style={{ padding: 40 }}><div className="empty-state-icon">🏦</div><div className="empty-state-text">No FDs for this member</div><button className="btn btn-primary btn-sm" onClick={() => navigate(`/add?tab=fd&memberId=${memberId}`)}>Add FD</button></div>
               )}
             </div>
           )}

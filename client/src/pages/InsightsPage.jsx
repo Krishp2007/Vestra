@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Topbar from '../components/layout/Topbar';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/helpers';
+import PerformanceInsightsCard from '../components/shared/PerformanceInsightsCard';
 
 export default function InsightsPage() {
   const [insights, setInsights] = useState([]);
@@ -85,66 +86,15 @@ export default function InsightsPage() {
       <div className="page-content animate-fade">
         
         {/* Performance Insights (Overall Portfolio Breakdown) */}
-        {performanceInsights && (performanceInsights.bestAsset || performanceInsights.worstAsset) && (
-          <div className="card animate-fade" style={{ marginBottom: 28 }}>
-            <div className="card-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
-              <div>
-                <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>💡 Family Portfolio Performance Insights</div>
-                <div className="card-subtitle">Aggregated wealth profitability across all family assets</div>
-              </div>
-            </div>
-            <div className="performance-insights-grid">
-              {/* Asset Profitability Breakdown */}
-              <div className="performance-insights-col">
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Asset Profit/Loss Breakdown</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                  {[
-                    { name: 'Mutual Funds', val: performanceInsights.sipReturns, icon: '💎', color: performanceInsights.sipReturns >= 0 ? 'var(--success)' : 'var(--danger)', invested: performanceInsights.sipInvested },
-                    { name: 'Stocks', val: performanceInsights.stockReturns, icon: '📈', color: performanceInsights.stockReturns >= 0 ? 'var(--success)' : 'var(--danger)', invested: performanceInsights.stockInvested },
-                    { name: 'Fixed Deposits', val: performanceInsights.fdReturns, icon: '🏦', color: 'var(--success)', invested: performanceInsights.fdInvested }
-                  ].map(a => {
-                    if (a.invested === 0) return null;
-                    return (
-                      <div key={a.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-                          <span>{a.icon}</span> {a.name}
-                        </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: a.color }}>
-                          {a.val >= 0 ? '+' : ''}{formatCurrency(a.val)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Dynamic Summary Statement */}
-              <div className="performance-insights-statement">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  ✨ Wealth Intelligence Statement
-                </div>
-                <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                  {performanceInsights.bestAsset && performanceInsights.worstAsset && (
-                    <>
-                      Your family investments are performing best in <strong>{performanceInsights.bestAsset.name}</strong>, yielding a total gain of <strong style={{ color: 'var(--success)' }}>{formatCurrency(performanceInsights.bestAsset.returns)}</strong>. 
-                      Conversely, your greatest drag on returns is in <strong>{performanceInsights.worstAsset.name}</strong>, with a net loss of <strong style={{ color: 'var(--danger)' }}>{formatCurrency(performanceInsights.worstAsset.returns)}</strong>.
-                    </>
-                  )}
-                  {performanceInsights.bestAsset && !performanceInsights.worstAsset && (
-                    <>
-                      Fantastic job! All your invested asset classes are profitable. Your strongest absolute performance comes from <strong>{performanceInsights.bestAsset.name}</strong>, netting <strong style={{ color: 'var(--success)' }}>{formatCurrency(performanceInsights.bestAsset.returns)}</strong> in gains.
-                    </>
-                  )}
-                  {!performanceInsights.bestAsset && performanceInsights.worstAsset && (
-                    <>
-                      Your family portfolio is experiencing downward pressure. Your biggest absolute contraction is in <strong>{performanceInsights.worstAsset.name}</strong>, showing a loss of <strong style={{ color: 'var(--danger)' }}>{formatCurrency(performanceInsights.worstAsset.returns)}</strong>. Consider rebalancing into fixed income.
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <PerformanceInsightsCard
+          insights={performanceInsights}
+          sipInvested={performanceInsights?.sipInvested || 0}
+          stockInvested={performanceInsights?.stockInvested || 0}
+          fdInvested={performanceInsights?.fdInvested || 0}
+          title="Family Portfolio Performance Insights"
+          subtitle="Aggregated wealth profitability across all family assets"
+          isFamily={true}
+        />
 
         <h2 style={{fontSize:16,fontWeight:600,marginBottom:20}}>💡 Smart Insights</h2>
         {insights.length > 0 ? insights.map((ins, i) => (
