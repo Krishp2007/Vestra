@@ -228,12 +228,18 @@ const startSipJob = () => {
   cron.schedule('0 22 * * 1-5', () => {
     logger.info('SipJob', 'Triggering scheduled 10:00 PM Mutual Fund NAV crawl...');
     crawlMutualFundNavs();
+  }, {
+    scheduled: true,
+    timezone: 'Asia/Kolkata'
   });
 
   // Schedule 2: Run a second time at 11:30 PM IST (Mon-Fri only) as a safety catch-up
   cron.schedule('30 23 * * 1-5', () => {
     logger.info('SipJob', 'Triggering scheduled 11:30 PM Mutual Fund NAV crawl (safety catch-up)...');
     crawlMutualFundNavs();
+  }, {
+    scheduled: true,
+    timezone: 'Asia/Kolkata'
   });
 
   // B. Process daily due dates at 10:30 AM IST (Mon-Fri only) with weekend rollover logic
@@ -303,6 +309,9 @@ const startSipJob = () => {
     } catch (error) {
       logger.error('SipJob', `Error during daily SIP check: ${error.message}`);
     }
+  }, {
+    scheduled: true,
+    timezone: 'Asia/Kolkata'
   });
 };
 

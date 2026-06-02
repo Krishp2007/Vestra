@@ -26,8 +26,23 @@ export default function SIPPage() {
 
   useEffect(() => { 
     load(); 
-    const interval = setInterval(load, 30000); // Auto-refresh every 30 seconds
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        load();
+      }
+    }, 30000); // Auto-refresh every 30 seconds
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        load();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const load = async () => {

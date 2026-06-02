@@ -47,6 +47,9 @@ const startInsightsJob = () => {
     } catch (error) {
       logger.error('InsightsJob', `Automated insights dispatch failed: ${error.message}`);
     }
+  }, {
+    scheduled: true,
+    timezone: 'Asia/Kolkata'
   });
 };
 

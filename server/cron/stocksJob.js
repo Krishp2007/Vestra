@@ -5,18 +5,29 @@ const logger = require('../utils/logger');
 const { sendAlertEmail } = require('../utils/sendAlertEmail');
 
 const startStocksJob = () => {
-  // Run stock price crawler and threshold evaluation every 30 seconds (Mon-Fri, active market hours 9:00 AM to 3:59 PM only)
+  // Run stock price crawler and threshold evaluation every 30 seconds (Mon-Fri, active market hours 9:00 AM to 3:59 PM IST)
   cron.schedule('*/30 * 9-15 * * 1-5', async () => {
     try {
       const stocks = await Stock.find().populate('memberId', 'name');
       if (stocks.length > 0) {
         // Shared symbol fetching: gather unique tickers to minimize external API loads
-        const uniqueSymbols = [...new Set(stocks.map(s => s.symbol))];
+        const uniqueKeys = [];
+        const seen = new Set();
+        for (const s of stocks) {
+          const key = `${s.symbol}:${s.exchange || 'NSE'}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueKeys.push({ symbol: s.symbol, exchange: s.exchange || 'NSE' });
+          }
+        }
         let fetchedCount = 0;
 
-        for (const symbol of uniqueSymbols) {
+        for (const item of uniqueKeys) {
+          const { symbol, exchange } = item;
+          const suffix = exchange === 'BSE' ? '.BO' : '.NS';
+          const ticker = `${symbol}${suffix}`;
           try {
-            const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`, {
+            const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`, {
               headers: { 
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' 
               }
@@ -27,18 +38,18 @@ const startStocksJob = () => {
                 const data = await res.json();
                 const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
                 if (price) {
-                  await Stock.updateMany({ symbol }, { currentPrice: price });
+                  await Stock.updateMany({ symbol, exchange }, { currentPrice: price });
                   fetchedCount++;
                 }
               }
             }
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (err) { 
-            logger.error('StocksJob', `Error updating price for ${symbol}: ${err.message}`); 
+            logger.error('StocksJob', `Error updating price for ${ticker}: ${err.message}`); 
           }
         }
 
-        logger.info('StocksJob', `Fetched prices for ${fetchedCount}/${uniqueSymbols.length} unique symbols.`);
+        logger.info('StocksJob', `Fetched prices for ${fetchedCount}/${uniqueKeys.length} unique tickers.`);
 
         // Individual user processing: check targets and stop-losses
         let alertsFired = 0;
@@ -91,6 +102,9 @@ const startStocksJob = () => {
     } catch (error) {
       logger.error('StocksJob', `Automation runtime exception: ${error.message}`);
     }
+  }, {
+    scheduled: true,
+    timezone: 'Asia/Kolkata'
   });
 };
 

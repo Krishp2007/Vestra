@@ -98,12 +98,25 @@ export default function StockPage() {
     load();
     // Real-time polling every 30 seconds
     const interval = setInterval(() => {
-      setStocks(currentStocks => {
-        if (currentStocks.length > 0) refreshPricesBackground(currentStocks);
-        return currentStocks;
-      });
+      if (document.visibilityState === 'visible') {
+        setStocks(currentStocks => {
+          if (currentStocks.length > 0) refreshPricesBackground(currentStocks);
+          return currentStocks;
+        });
+      }
     }, 30000);
-    return () => clearInterval(interval);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        load();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const load = async () => {

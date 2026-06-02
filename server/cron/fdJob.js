@@ -113,6 +113,9 @@ const startFdJob = () => {
     } catch (error) {
       logger.error('FdJob', `Error during daily FD check: ${error.message}`);
     }
+  }, {
+    scheduled: true,
+    timezone: 'Asia/Kolkata'
   });
 };
 
