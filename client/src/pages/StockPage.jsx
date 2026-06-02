@@ -29,6 +29,21 @@ export default function StockPage() {
     const sl = alertModal.stopLossPrice ? Number(alertModal.stopLossPrice) : null;
     const cmp = alertModal.stock.currentPrice;
 
+    // Check if user is attempting to save an empty alert where none existed
+    if (alertModal.activeTab === 'target' && !alertModal.targetPrice) {
+      if (!alertModal.stock.targetPrice) {
+        toast.error('Please enter a Target Price!');
+        return;
+      }
+    }
+    if (alertModal.activeTab === 'stop' && !alertModal.stopLossPrice) {
+      if (!alertModal.stock.stopLossPrice) {
+        toast.error('Please enter a Stop Loss Price!');
+        return;
+      }
+    }
+
+    // Standard alerts validations
     if (alertModal.activeTab === 'target' && tp && cmp && tp <= cmp) {
       toast.error(`Target Price must be greater than Current Price (₹${cmp})`);
       return;
@@ -44,7 +59,10 @@ export default function StockPage() {
         stopLossPrice: alertModal.activeTab === 'stop' ? sl : (alertModal.stock.stopLossPrice || null)
       };
       await api.put(`/stocks/${alertModal.stock._id}`, updates);
-      toast.success('Price alerts updated');
+      
+      const wasCleared = (alertModal.activeTab === 'target' && !tp) || (alertModal.activeTab === 'stop' && !sl);
+      toast.success(wasCleared ? 'Price alert cleared successfully' : 'Price alerts updated');
+      
       setAlertModal({ show: false, stock: null, targetPrice: '', stopLossPrice: '', activeTab: 'target' });
       load();
     } catch(err) {
