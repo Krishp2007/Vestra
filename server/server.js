@@ -15,14 +15,38 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  crossOriginEmbedderPolicy: false
+}));
 
-const allowedOrigins = process.env.CLIENT_ORIGINS 
-  ? process.env.CLIENT_ORIGINS.split(',').map(o => o.trim()) 
-  : ['http://localhost:5173', 'http://localhost:3000'];
+const envOrigins = process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN;
+let allowedOrigins = ['http://localhost:5173', 'http://localhost:3000'];
+if (envOrigins) {
+  allowedOrigins = envOrigins.split(',').map(o => o.trim().replace(/\/$/, ''));
+}
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, or server-to-server calls)
+    if (!origin) return callback(null, true);
+    
+    const cleanOrigin = origin.trim().replace(/\/$/, '');
+    
+    // Fail-safe matching for secure local development and vercel deployments
+    const isAllowed = 
+      allowedOrigins.some(allowed => allowed.replace(/\/$/, '') === cleanOrigin) ||
+      cleanOrigin.endsWith('.vercel.app') ||
+      cleanOrigin.startsWith('http://localhost:') ||
+      cleanOrigin.startsWith('http://127.0.0.1:');
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked request from unauthorized origin: ${origin}`);
+      callback(null, false);
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
